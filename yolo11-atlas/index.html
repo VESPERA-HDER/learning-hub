@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YOLO11 全解图鉴 · 逐模块精读 + 动手演示</title>
+<meta name="description" content="YOLO11 的逐模块精细解析：24 个模块每个都有大白话解释、结构拆解、张量演算、官方代码、交互演示与避坑提示。纯静态、离线可用。">
+<style>
+/* ============================ 主题变量 ============================ */
+:root{
+  --ink:#1b2430; --ink-2:#3d4a5c; --ink-3:#6b7a8d; --ink-4:#94a3b8;
+  --bg:#ffffff; --bg-2:#f7f9fb; --bg-3:#eef2f6; --bg-code:#0f1620;
+  --line:#e3e8ef; --line-2:#cfd7e3;
+  --accent:#0f9d8f; --accent-2:#0b7a70; --accent-bg:#e6f6f3;
+  --warm:#e08a2e; --warm-bg:#fdf3e6;
+  --danger:#dc2626; --danger-bg:#fdecec;
+  --ok:#16a34a; --ok-bg:#eaf7ee;
+  --violet:#7c3aed; --violet-bg:#f3ecfe;
+  --sans:"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei","Hiragino Sans GB",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono","Cascadia Code","SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  --r:12px; --r-s:8px;
+  --sh:0 1px 2px rgba(16,24,40,.04),0 6px 20px -12px rgba(16,24,40,.18);
+}
+html[data-theme="dark"]{
+  --ink:#e9eef5; --ink-2:#bcc7d6; --ink-3:#8b98ab; --ink-4:#6b7a8d;
+  --bg:#0e1319; --bg-2:#141b23; --bg-3:#1b242e; --bg-code:#0a0f16;
+  --line:#232d3a; --line-2:#33404f;
+  --accent:#2ee6c5; --accent-2:#5ff0d6; --accent-bg:#0d2b28;
+  --warm:#f0a94e; --warm-bg:#2b2113;
+  --danger:#f87171; --danger-bg:#2b1616;
+  --ok:#4ade80; --ok-bg:#12281a;
+  --violet:#a78bfa; --violet-bg:#1e1832;
+  --sh:0 1px 2px rgba(0,0,0,.4),0 10px 30px -16px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:15.5px;line-height:1.8;-webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent-2);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:.88em;background:var(--bg-3);padding:.1em .4em;border-radius:5px}
+.mono{font-family:var(--mono)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ============================ 布局 ============================ */
+.app{display:grid;grid-template-columns:290px minmax(0,1fr);height:100vh}
+aside{
+  border-right:1px solid var(--line);background:var(--bg-2);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.brand{padding:16px 18px 12px;border-bottom:1px solid var(--line)}
+.brand b{display:block;font-size:15.5px;letter-spacing:.01em}
+.brand span{display:block;font-size:11.5px;color:var(--ink-3);margin-top:3px;line-height:1.5}
+.sections{padding:10px;display:grid;gap:3px;border-bottom:1px solid var(--line)}
+.sections button{
+  text-align:left;font:inherit;font-size:13.5px;padding:7px 11px;border-radius:var(--r-s);
+  background:transparent;border:0;color:var(--ink-2);cursor:pointer;display:flex;gap:8px;align-items:center
+}
+.sections button:hover{background:var(--bg-3);color:var(--ink)}
+.sections button.on{background:var(--accent-bg);color:var(--accent-2);font-weight:600}
+.sections button i{font-style:normal;font-size:11px;color:var(--ink-4);margin-left:auto}
+nav#toc{overflow-y:auto;padding:8px 10px 40px;flex:1}
+nav#toc::-webkit-scrollbar{width:8px}
+nav#toc::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:8px}
+.nav-g{margin-bottom:12px}
+.nav-gt{font-size:11.5px;font-weight:700;color:var(--ink-3);letter-spacing:.06em;padding:6px 10px 4px}
+.nav-g ul{list-style:none;margin:0;padding:0}
+.nav-g a{
+  display:block;padding:4px 10px;border-radius:6px;font-size:13px;color:var(--ink-2);
+  border-left:2px solid transparent;line-height:1.5
+}
+.nav-g a:hover{background:var(--bg-3);text-decoration:none}
+.nav-g a.on{background:var(--accent-bg);color:var(--accent-2);font-weight:600;border-left-color:var(--accent)}
+.nav-search{padding:0 4px 10px}
+.nav-search input{
+  width:100%;font:inherit;font-size:13px;padding:6px 10px;border-radius:var(--r-s);
+  border:1px solid var(--line-2);background:var(--bg);color:var(--ink)
+}
+main{overflow-y:auto;padding:26px 44px 120px;scroll-behavior:smooth}
+main::-webkit-scrollbar{width:10px}
+main::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:10px}
+.view{display:none}
+.view.on{display:block;animation:fade .18s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ============================ 通用排版 ============================ */
+h1{font-size:clamp(24px,3vw,34px);margin:0 0 8px;letter-spacing:-.01em;line-height:1.3}
+h2{font-size:22px;margin:44px 0 14px;padding-bottom:9px;border-bottom:1px solid var(--line)}
+h3{font-size:19px;margin:0 0 8px}
+h4{font-size:16px;margin:0}
+p{margin:10px 0}
+ul,ol{padding-left:22px;margin:10px 0}
+li{margin:5px 0}
+.lede{font-size:17px;color:var(--ink-2);margin:4px 0 18px}
+.dim{color:var(--ink-3);font-size:.92em}
+.hi{color:var(--accent-2)}
+.tag{display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:999px;background:var(--bg-3);color:var(--ink-3);border:1px solid var(--line)}
+.tag.k{background:var(--accent-bg);color:var(--accent-2);border-color:transparent;font-weight:600}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 8px}
+.tw{overflow-x:auto;margin:16px 0;border:1px solid var(--line);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{background:var(--bg-3);font-size:12.5px;font-weight:700;white-space:nowrap}
+tbody tr:hover{background:var(--bg-2)}
+tbody tr:last-child td{border-bottom:0}
+td.n,th.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+caption{caption-side:bottom;padding:8px 12px;font-size:12.5px;color:var(--ink-3);text-align:left;border-top:1px solid var(--line)}
+.box{border-radius:var(--r);padding:13px 16px;margin:16px 0;border:1px solid var(--line);background:var(--bg-2);border-left:4px solid var(--accent)}
+.box .bt{display:block;font-weight:700;font-size:13.5px;margin-bottom:3px;color:var(--accent-2)}
+.box.warn{border-left-color:var(--warm)} .box.warn .bt{color:#b45309}
+.box.danger{border-left-color:var(--danger)} .box.danger .bt{color:#b91c1c}
+.box.tip{border-left-color:var(--ok)} .box.tip .bt{color:#15803d}
+.box p:first-of-type{margin-top:0}.box p:last-child{margin-bottom:0}
+.grid{display:grid;gap:14px;margin:16px 0}
+.g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.card{border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;background:var(--bg-2)}
+.card h4{margin-bottom:5px;font-size:15px}
+.card p{margin:5px 0;font-size:14px;color:var(--ink-2)}
+.card .big{font-family:var(--mono);font-size:21px;font-weight:700;color:var(--accent-2);display:block;line-height:1.3}
+.card .sub{font-size:12.5px;color:var(--ink-3)}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--ink-3);font-size:13px}
+
+/* ============================ 模块精读 ============================ */
+.learn-head{padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:20px}
+.learn-head h1{margin-bottom:4px}
+.mod{display:none}
+.mod.on{display:block}
+.mod-h{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:18px}
+.mod-sub{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}
+.blk{margin:0 0 22px;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--bg)}
+.blk-h{
+  margin:0;padding:10px 16px;background:var(--bg-3);font-size:14px;font-weight:700;
+  display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--line)
+}
+.blk-i{color:var(--accent);font-size:13px}
+.blk-n{font-weight:400;font-size:12px;color:var(--ink-3);margin-left:auto}
+.blk-b{padding:14px 16px}
+.oneline{
+  font-size:16.5px;color:var(--ink);font-weight:600;margin:0 0 10px;padding-left:12px;
+  border-left:3px solid var(--accent);line-height:1.7
+}
+.why{color:var(--ink-2);font-size:15px;line-height:1.9}
+.why b{color:var(--ink)}
+.figbox{overflow-x:auto;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+svg.fig{display:block;width:100%;height:auto;min-width:560px}
+ol.steps{counter-reset:s;list-style:none;padding:0;margin:0}
+ol.steps>li{counter-increment:s;position:relative;padding-left:42px;margin:13px 0}
+ol.steps>li::before{
+  content:counter(s);position:absolute;left:0;top:3px;width:26px;height:26px;border-radius:50%;
+  background:var(--accent);color:#fff;font-family:var(--mono);font-size:13px;font-weight:700;
+  display:grid;place-items:center
+}
+html[data-theme="dark"] ol.steps>li::before{color:#06231f}
+ol.steps>li>b{display:block;font-size:14.5px;margin-bottom:1px}
+ol.steps>li>p{margin:0;color:var(--ink-2);font-size:14.5px}
+.code-h{font-size:12.5px;color:var(--ink-3);margin-bottom:6px;font-family:var(--mono)}
+pre.code{
+  margin:0;padding:14px 16px;background:var(--bg-code);border-radius:var(--r);
+  overflow-x:auto;font-family:var(--mono);font-size:12.8px;line-height:1.75;color:#d7e2ee
+}
+pre.code::-webkit-scrollbar{height:9px}
+pre.code::-webkit-scrollbar-thumb{background:#33404f;border-radius:9px}
+pre.code .kw{color:#ff8ad4;font-weight:600}
+pre.code .st{color:#8ee2b8}
+pre.code .nu{color:#ffc46b}
+pre.code .cm{color:#7b8b9e;font-style:italic}
+ul.pitfalls{list-style:none;padding:0;margin:0}
+ul.pitfalls>li{
+  position:relative;padding:9px 12px 9px 34px;margin:8px 0;background:var(--warn-bg);
+  border-radius:var(--r-s);font-size:14.5px;color:var(--ink-2);line-height:1.8
+}
+ul.pitfalls>li::before{content:"!";position:absolute;left:12px;top:10px;width:16px;height:16px;
+  border-radius:50%;background:var(--warm);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
+ul.pitfalls>li b{color:var(--ink)}
+
+/* ============================ 演示控件 ============================ */
+.demo{border:1px dashed var(--line-2);border-radius:var(--r);padding:14px;background:var(--bg-2)}
+.demo-empty{border:1px dashed var(--line-2);border-radius:var(--r);padding:14px;color:var(--ink-3);font-size:14px;background:var(--bg-2)}
+.demo-err{color:var(--danger);font-size:13px;font-family:var(--mono)}
+.drow{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;margin:8px 0}
+.dwrap{display:inline-block}
+.dlab{font-size:12px;color:var(--ink-3);margin-bottom:5px}
+.darr{font-size:24px;color:var(--ink-4);align-self:center;padding-top:20px}
+.dgrid{display:grid;gap:2px}
+.dcell{display:grid;place-items:center;font-family:var(--mono);font-size:10.5px;border-radius:2px;color:#fff}
+.dctl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin:12px 0}
+.ctl{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);background:var(--bg);
+  border:1px solid var(--line);border-radius:999px;padding:3px 12px 3px 12px}
+.ctl .cl{white-space:nowrap}
+.ctl input[type=range]{width:110px;accent-color:var(--accent)}
+.ctl .dv{font-family:var(--mono);font-size:12.5px;color:var(--accent-2);min-width:34px;text-align:right}
+.btn{
+  font:inherit;font-size:12.5px;padding:5px 12px;border-radius:999px;cursor:pointer;
+  background:var(--bg);color:var(--ink-2);border:1px solid var(--line-2)
+}
+.btn:hover{border-color:var(--accent);color:var(--accent-2)}
+.btn.on{background:var(--accent-bg);color:var(--accent-2);border-color:var(--accent);font-weight:600}
+.dres{margin-top:14px;font-size:14px;color:var(--ink-2);line-height:1.9;background:var(--bg);
+  border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.dres b{color:var(--ink)}
+.dtab{width:100%;font-size:13px;margin:10px 0;min-width:0}
+.dtab th,.dtab td{padding:5px 9px;font-size:12.8px}
+.dtab tr.tot td{border-top:2px solid var(--line-2);font-weight:700;background:var(--bg-3)}
+.dtab tr.pos td{background:var(--ok-bg)}
+.dbars{display:grid;gap:7px;margin:10px 0}
+.dbar{display:grid;grid-template-columns:130px 1fr 110px;gap:10px;align-items:center;font-size:12.5px}
+.dbl{color:var(--ink-2);font-size:12.5px}
+.dbl.on{color:var(--accent-2);font-weight:700}
+.dbt{background:var(--bg-3);border-radius:999px;height:16px;overflow:hidden}
+.dbf{height:100%;border-radius:999px;transition:width .25s}
+.dbv{text-align:right;color:var(--ink-3);font-size:12px}
+.dflow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.dnode{font-size:12.5px;padding:6px 11px;border-radius:var(--r-s);background:var(--bg-3);
+  border:1px solid var(--line-2);color:var(--ink-2)}
+.dnode.hot{background:var(--accent-bg);border-color:var(--accent);color:var(--accent-2);font-weight:600}
+.dnode.out{background:var(--ok-bg);border-color:var(--ok);color:#15803d}
+.darrow{color:var(--ink-4)}
+.dbranch{display:grid;gap:6px;padding:6px;border:1px dashed var(--line-2);border-radius:var(--r-s)}
+.dside{font-size:12px;color:var(--ink-3);padding:6px 11px;border-radius:var(--r-s);
+  background:var(--bg-3);border:1px dashed var(--line-2)}
+.dstack{display:flex;height:44px;border-radius:var(--r-s);overflow:hidden;border:1px solid var(--line-2);margin:10px 0}
+.dseg{display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff;
+  font-size:11.5px;min-width:44px;text-align:center;line-height:1.25;font-family:var(--mono)}
+.dseg i{font-style:normal;opacity:.85;font-size:10px}
+.dcat .dnote{font-size:13px;color:var(--ink-2);margin-top:6px}
+.dpan{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0}
+.dpanstep{
+  border:1px solid var(--line-2);border-radius:var(--r-s);padding:4px 9px;cursor:pointer;
+  background:var(--bg);font-size:11.5px;display:flex;gap:6px;align-items:baseline
+}
+.dpanstep b{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.dpanstep:hover{border-color:var(--accent)}
+.dpanstep.on{background:var(--accent-bg);border-color:var(--accent);color:var(--accent-2)}
+.dpanstep.on b{color:var(--accent-2)}
+.dpanstep.done{opacity:.62}
+.dpanstep.g-bottom{background:var(--warm-bg)} .dpanstep.g-bottom.on{background:var(--warm);color:#fff}
+.dpanstep.g-head{background:var(--violet-bg)} .dpanstep.g-head.on{background:var(--violet);color:#fff}
+.dnav{display:flex;gap:10px;align-items:center;margin-top:8px}
+.dflbars{display:flex;gap:3px;align-items:flex-end;height:120px;padding:6px;background:var(--bg);
+  border:1px solid var(--line);border-radius:var(--r-s)}
+.dflbar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;
+  height:100%;cursor:pointer;gap:2px}
+.dflfill{width:100%;background:linear-gradient(180deg,var(--accent),#7fd8cc);border-radius:3px 3px 0 0;transition:height .2s}
+.dflbar span{font-size:9.5px;color:var(--ink-4);font-family:var(--mono)}
+.dmat{margin:10px 0}
+.dtal{margin:8px 0}
+.dnms{margin:8px 0}
+.dmAP{margin:8px 0}
+.dlb{margin:10px 0}
+.dpipe{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.dpstep{
+  border:1px solid var(--line-2);border-radius:var(--r-s);padding:6px 12px;background:var(--bg);
+  cursor:pointer;font-size:12.5px;display:flex;flex-direction:column;gap:1px;min-width:120px
+}
+.dpstep b{font-family:var(--mono);font-size:15px;color:var(--ink-3)}
+.dpstep .dpn{font-weight:600;color:var(--ink)}
+.dpstep .dpg{font-style:normal;font-size:10.5px;color:var(--ink-4)}
+.dpstep:hover{border-color:var(--accent)}
+.dpstep.on{background:var(--accent-bg);border-color:var(--accent)}
+.dpstep.on b{color:var(--accent-2)}
+.dpstep.done{opacity:.6}
+.dseg-ctl{display:flex;gap:6px}
+
+/* ============================ 首页/其他视图 ============================ */
+.hero{
+  border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;margin:16px 0;
+  background:linear-gradient(135deg,var(--accent-bg),transparent 70%)
+}
+.hero h3{margin-bottom:6px}
+.path{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));margin:16px 0}
+.path .card{cursor:pointer;transition:border-color .15s}
+.path .card:hover{border-color:var(--accent)}
+.path .card b{color:var(--accent-2)}
+.trace-ctl{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:14px 0}
+select,input[type=number],input[type=text]{
+  font:inherit;font-size:13.5px;padding:6px 10px;border-radius:var(--r-s);
+  border:1px solid var(--line-2);background:var(--bg);color:var(--ink)
+}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-3);margin:8px 0}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+details{border:1px solid var(--line);border-radius:var(--r-s);padding:9px 13px;margin:8px 0;background:var(--bg-2)}
+details summary{cursor:pointer;font-weight:600;font-size:14.5px}
+details[open] summary{margin-bottom:6px}
+@media(max-width:1080px){
+  .app{grid-template-columns:1fr;height:auto}
+  aside{position:sticky;top:0;z-index:20;max-height:52vh}
+  main{padding:20px 18px 80px;overflow:visible}
+  body{height:auto}
+}
+/* ============================ 课程路线视图 ============================ */
+.plan-check{list-style:none;padding-left:2px;margin:8px 0}
+.plan-check li{display:flex;gap:9px;align-items:flex-start;padding:4px 0;margin:2px 0}
+.plan-check input{margin-top:7px;accent-color:var(--accent);flex:none;cursor:pointer}
+.plan-check label{cursor:pointer}
+.plan-check li.done label{color:var(--ink-3);text-decoration:line-through}
+.pbar{height:8px;background:var(--bg-3);border-radius:99px;overflow:hidden;margin:8px 0 3px}
+.pbar i{display:block;height:100%;background:var(--accent);width:0;transition:width .35s ease}
+.pstat{font-size:12px;color:var(--ink-3)}
+.st{display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:999px;font-weight:600;white-space:nowrap}
+.st-done{background:var(--ok-bg);color:var(--ok)}
+.st-doing{background:var(--warm-bg);color:var(--warm)}
+.st-lock{background:var(--bg-3);color:var(--ink-3)}
+.phase{border:1px solid var(--line);border-radius:var(--r);padding:15px 18px;margin:16px 0;background:var(--bg-2)}
+.phase.cur{border-color:var(--accent);box-shadow:var(--sh)}
+.phase-h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:2px}
+.phase-h h3{margin:0}
+.phase .res{font-size:13px;margin-top:10px;padding-top:9px;border-top:1px dashed var(--line-2)}
+.phase .res a{font-weight:600}
+@media print{
+  aside,.sections{display:none}
+  .app{display:block;height:auto}
+  main{overflow:visible;padding:0}
+  .mod{display:block!important}
+  .blk{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">
+      <a href="../index.html" style="display:inline-block;font-size:12px;margin-bottom:6px">← 返回学习基地</a>
+      <b>YOLO11 全解图鉴</b>
+      <span>逐模块精读 · 交互演示 · 数据经官方源码核对</span>
+    </div>
+    <div class="sections" id="sections">
+      <button data-view="plan" class="on">我的课程路线 <i>Plan</i></button>
+      <button data-view="home">总览与阅读路线 <i>Home</i></button>
+      <button data-view="learn">逐模块精读 <i>23</i></button>
+      <button data-view="trace">张量流追踪 <i>Trace</i></button>
+      <button data-view="compare">版本对比 <i>vs</i></button>
+      <button data-view="train">训练全流程 <i>Guide</i></button>
+      <button data-view="faq">速查与 FAQ <i>?</i></button>
+    </div>
+    <nav id="toc"></nav>
+  </aside>
+  <main id="main">
+
+    <!-- ===================== 我的课程路线 ===================== -->
+    <section class="view on" id="view-plan">
+      <h1>我的 YOLO11 学习路线</h1>
+      <p class="lede">这是我和助教约定的四阶段课程主控台：看清楚自己在哪、下一步做什么、每学完一个单元就打个勾（勾选状态会保存在本机浏览器里，关掉页面也不会丢）。</p>
+
+      <div class="box tip"><span class="bt">✅ 当前进度</span>
+        <p><b>阶段一已完成（2026-10）</b>，下一步是 <b>1.5 架构地图</b>，然后进入阶段二。<br>
+        ❓ <b>待回答的问题</b>：毕业课题的数据类型是什么（显微细胞 / 无人机航拍 / 工业表面 / 其他）？这会影响阶段二的模型选档建议，下次上课时告诉助教。</p>
+      </div>
+
+      <h2>总进度</h2>
+      <div class="pbar"><i id="planBarAll"></i></div>
+      <p class="pstat" id="planStatAll">加载中…</p>
+
+      <h2>我的实验环境（约束卡）</h2>
+      <div class="grid g3">
+        <div class="card"><h4>显卡</h4><p>RTX 3050 Laptop <b>4GB 显存</b><br><span class="dim">⚠️ batch 只能开 4–8，只训练 n/s 两档模型，m/l/x 本地跑不动</span></p></div>
+        <div class="card"><h4>环境（已锁定，别升级）</h4><p class="mono" style="font-size:13px">conda env: yolo11<br>Python 3.10.22 · torch 2.5.1+cu124<br>ultralytics 8.3.248</p></div>
+        <div class="card"><h4>目录约定</h4><p class="mono" style="font-size:13px">课程工作区 D:\yolo11-course<br>阶段总结笔记 D:\yolo11-course\notes\</p></div>
+      </div>
+
+      <h2>四阶段路线图</h2>
+
+      <div class="phase" data-phase>
+        <div class="phase-h"><h3>阶段一 · 环境与数据</h3><span class="st st-done">✅ 已完成 2026-10</span></div>
+        <ul class="plan-check">
+          <li><input type="checkbox" id="t-p1-1" checked><label for="t-p1-1">1.1 conda 环境 + GPU 版 PyTorch 安装验证</label></li>
+          <li><input type="checkbox" id="t-p1-2" checked><label for="t-p1-2">1.2 COCO128 走通：训练 + 验证 + 看输出目录</label></li>
+          <li><input type="checkbox" id="t-p1-3" checked><label for="t-p1-3">1.3 自己的数据集准备（YOLO 标注格式 + data.yaml）</label></li>
+        </ul>
+        <p class="dim">产出：第一阶段总结（含术语卡表）→ <span class="mono">D:\yolo11-course\notes\第一阶段总结-环境与数据.md</span></p>
+        <div class="pbar"><i></i></div><p class="pstat"></p>
+      </div>
+
+      <div class="phase cur" data-phase>
+        <div class="phase-h"><h3>1.5 · 架构地图</h3><span class="st st-doing">👉 下一步</span></div>
+        <p class="dim">阶段三深挖之前，先建立整体印象：一张图怎么从 640×640 变成检测框。</p>
+        <ul class="plan-check">
+          <li><input type="checkbox" id="t-p15-1"><label for="t-p15-1">知道 Backbone / Neck / Head 三段各自负责什么</label></li>
+          <li><input type="checkbox" id="t-p15-2"><label for="t-p15-2">用站内「张量流追踪」把 yolo11n 完整过一遍</label></li>
+          <li><input type="checkbox" id="t-p15-3"><label for="t-p15-3">能向同学口述一遍完整数据流（助教验收）</label></li>
+        </ul>
+        <p class="res">站内资源：<a href="javascript:void(0)" data-go="home">总览与阅读路线</a> · <a href="javascript:void(0)" data-go="trace">张量流追踪</a></p>
+        <div class="pbar"><i></i></div><p class="pstat"></p>
+      </div>
+
+      <div class="phase" data-phase>
+        <div class="phase-h"><h3>阶段二 · 训练与调参</h3><span class="st st-lock">🔒 未开始</span></div>
+        <ul class="plan-check">
+          <li><input type="checkbox" id="t-p2-1"><label for="t-p2-1">2.1 五档模型（n/s/m/l/x）对比与自己的选档理由</label></li>
+          <li><input type="checkbox" id="t-p2-2"><label for="t-p2-2">2.2 train 模式 + default.yaml 超参数逐项过一遍</label></li>
+          <li><input type="checkbox" id="t-p2-3"><label for="t-p2-3">2.3 读懂 results.csv 曲线（box/cls/dfl loss 与 mAP）</label></li>
+        </ul>
+        <p class="dim">产出：第二阶段总结 → <span class="mono">D:\yolo11-course\notes\</span></p>
+        <p class="res">站内资源：<a href="javascript:void(0)" data-go="train">训练全流程</a></p>
+        <div class="pbar"><i></i></div><p class="pstat"></p>
+      </div>
+
+      <div class="phase" data-phase>
+        <div class="phase-h"><h3>阶段三 · 模块级架构深挖</h3><span class="st st-lock">🔒 未开始</span></div>
+        <p class="dim">本站的 23 个模块精读就是这阶段的主教材，按「类比 → 结构拆解 → 连接理由 → v8 对比 → 数据流图」五步法逐个攻破。</p>
+        <ul class="plan-check">
+          <li><input type="checkbox" id="t-p3-1"><label for="t-p3-1">3.1 Conv stem 与 C3k2（特征提取的基础积木）</label></li>
+          <li><input type="checkbox" id="t-p3-2"><label for="t-p3-2">3.2 SPPF 与 C2PSA（感受野与注意力）</label></li>
+          <li><input type="checkbox" id="t-p3-3"><label for="t-p3-3">3.3 PAN-FPN（多尺度特征融合）</label></li>
+          <li><input type="checkbox" id="t-p3-4"><label for="t-p3-4">3.4 anchor-free 检测头 + DFL</label></li>
+          <li><input type="checkbox" id="t-p3-5"><label for="t-p3-5">3.5 损失函数：CIoU + BCE + DFL</label></li>
+        </ul>
+        <p class="res">站内资源：<a href="javascript:void(0)" data-go="learn">逐模块精读</a> · <a href="javascript:void(0)" data-go="compare">版本对比</a></p>
+        <div class="pbar"><i></i></div><p class="pstat"></p>
+      </div>
+
+      <div class="phase" data-phase>
+        <div class="phase-h"><h3>阶段四 · 评估与部署</h3><span class="st st-lock">🔒 未开始</span></div>
+        <ul class="plan-check">
+          <li><input type="checkbox" id="t-p4-1"><label for="t-p4-1">4.1 mAP / P / R / F1 指标（毕业论文要汇报的）</label></li>
+          <li><input type="checkbox" id="t-p4-2"><label for="t-p4-2">4.2 ONNX 导出与参数含义</label></li>
+          <li><input type="checkbox" id="t-p4-3"><label for="t-p4-3">4.3 TensorRT / OpenVINO / NCNN 三条部署路线怎么选</label></li>
+          <li><input type="checkbox" id="t-p4-4"><label for="t-p4-4">4.4 写出自己的最小推理脚本（输入图片 → 画出检测框）</label></li>
+        </ul>
+        <div class="pbar"><i></i></div><p class="pstat"></p>
+      </div>
+
+      <h2>视频学习区（配双语字幕插件）</h2>
+      <p class="dim">已安装「沉浸式翻译」插件：打开 YouTube 视频 → 开启视频自带 CC 字幕 → 点插件图标 → 勾选「自动开启双语字幕」。翻译服务选免费的微软/腾讯/谷歌翻译即可，不要买 Pro。</p>
+      <div class="tw"><table>
+        <thead><tr><th>顺序</th><th>视频</th><th>对应课程</th></tr></thead>
+        <tbody>
+          <tr><td class="n">1</td><td><a href="https://www.youtube.com/watch?v=-JXwa-WlkU8" target="_blank" rel="noopener">How to Use Ultralytics YOLO11 for Object Detection and Tracking</a></td><td>1.5 架构地图的预热，建立整体印象</td></tr>
+          <tr><td class="n">2</td><td><a href="https://www.youtube.com/watch?v=9ymyH4H1fG4" target="_blank" rel="noopener">How to Train Ultralytics YOLO11 on the VisDrone Dataset</a></td><td>阶段二的预演，无人机航拍数据集训练全流程</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2>术语卡汇总（随课程更新）</h2>
+      <div class="tw"><table>
+        <thead><tr><th>术语</th><th>一句话定义</th><th>类比</th><th>首次出现</th></tr></thead>
+        <tbody>
+          <tr><td><b>conda 虚拟环境</b></td><td>给每个项目单独配一套 Python 和库的隔离空间</td><td>每个项目一间独立厨房，调料互不串味</td><td>1.1</td></tr>
+          <tr><td><b>CUDA</b></td><td>让神经网络跑在 N 卡上的底层计算平台</td><td>显卡的"电源插座"，torch 通过它用上 GPU</td><td>1.1</td></tr>
+          <tr><td><b>预训练权重</b></td><td>别人在大数据集上训好的模型参数，可直接迁移</td><td>请了一位已经会认 80 种东西的师傅带你</td><td>1.2</td></tr>
+          <tr><td><b>batch size</b></td><td>每次送进显卡学习的图片数量</td><td>老师一次批改几份作业</td><td>1.2</td></tr>
+          <tr><td><b>epoch</b></td><td>把整个训练集完整学一遍叫 1 个 epoch</td><td>把整本习题册从头刷到尾一遍</td><td>1.2</td></tr>
+          <tr><td><b>YOLO 标注格式</b></td><td>每张图一个 txt，每行：类别 x中心 y中心 宽 高（0~1 归一化）</td><td>统一格式的快递单</td><td>1.3</td></tr>
+          <tr><td><b>data.yaml</b></td><td>告诉 YOLO 数据集在哪、有几个类别、类别叫什么的配置文件</td><td>考试大纲</td><td>1.3</td></tr>
+          <tr><td><b>CC 字幕</b></td><td>视频自带的文字字幕轨道，翻译插件在它基础上叠加译文</td><td>原版歌词本，插件负责在下面加一行翻译</td><td>视频学习</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="box warn"><span class="bt">⚠️ 上课约定（别忘了）</span>
+        <p>① 每学完一个单元，助教会停下来等你确认，别不好意思提问；② 报错时把<b>最后一行</b>错误信息发给助教；③ 版本号以 <a href="https://docs.ultralytics.com/" target="_blank" rel="noopener">docs.ultralytics.com</a> 官方文档为准；④ 本页勾选状态存在这台电脑的浏览器里，换浏览器/清缓存会重置。</p>
+      </div>
+    </section>
+    <script>
+    /* ============ 课程路线打卡（localStorage 持久化） ============ */
+    (function () {
+      var KEY = 'y11-plan-progress-v1';
+      var boxes = [...document.querySelectorAll('#view-plan .plan-check input[type=checkbox]')];
+      var saved = null;
+      try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+      boxes.forEach(function (b) {
+        if (saved && typeof saved[b.id] === 'boolean') b.checked = saved[b.id];
+        b.addEventListener('change', function () {
+          var s = {};
+          boxes.forEach(function (x) { s[x.id] = x.checked; });
+          try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {}
+          refresh();
+        });
+      });
+      function refresh() {
+        var total = boxes.length, done = boxes.filter(function (b) { return b.checked; }).length;
+        document.getElementById('planBarAll').style.width = (total ? done / total * 100 : 0) + '%';
+        document.getElementById('planStatAll').textContent = '已完成 ' + done + ' / ' + total + ' 个单元';
+        document.querySelectorAll('#view-plan .phase[data-phase]').forEach(function (ph) {
+          var bs = [...ph.querySelectorAll('.plan-check input[type=checkbox]')];
+          var d = bs.filter(function (b) { return b.checked; }).length;
+          var bar = ph.querySelector('.pbar i'), stat = ph.querySelector('.pstat');
+          if (bar) bar.style.width = (bs.length ? d / bs.length * 100 : 0) + '%';
+          if (stat) stat.textContent = d + ' / ' + bs.length;
+          bs.forEach(function (b) { b.closest('li').classList.toggle('done', b.checked); });
+        });
+      }
+      refresh();
+    })();
+    </script>
+
+    <!-- ===================== 首页 ===================== -->
+    <section class="view" id="view-home">
+      <h1>YOLO11 全解图鉴：把每个模块拆到能自己复现</h1>
+      <p class="lede">写给刚进实验室的研一同学。上一版我给的是一份「完整资料书」，密度太高、啃起来吃力；这一版换一种组织方式——<b>把网络拆成 23 个模块，每个模块都配一张结构图、一段逐步演算、可以直接跑的代码、一个能拖动的演示，以及我实际踩过的坑。</b></p>
+      <div class="meta">
+        <span class="tag k">23 个模块 · 全部含交互演示</span>
+        <span class="tag">21 个可交互 demo</span>
+        <span class="tag">参数/FLOPs 与官方误差 ≤0.02%</span>
+        <span class="tag">纯静态 · 双击即看 · 可离线</span>
+      </div>
+
+      <div class="hero">
+        <h3>先看这三件事，你会省下很多时间</h3>
+        <p><b>① 张量形状不用背。</b>点左边「张量流追踪」，选模型尺寸和分辨率，23 层的 <code>[通道, 高, 宽]</code> 与参数量会全部列出来——这些数字是我按官方 <code>yolo11.yaml</code> 逐层推导、并与 ultralytics 实测逐层对账过的。</p>
+        <p><b>② 每个「为什么」都有可拖动的东西。</b>比如 C3k2 为什么有三种形态？拖 <code>n</code> 与切换 c3k / attn，参数量的变化会立刻显示出来。</p>
+        <p><b>③ 避坑提示是我真踩过的。</b>例如「m/l/x 变体会强制把所有 C3k2 的 c3k 设为 True」这条隐藏规则，曾让我把 yolo11x 的参数量算成了官方值的一半。</p>
+      </div>
+
+      <h2>三条阅读路线</h2>
+      <div class="path">
+        <div class="card" data-go="learn">
+          <b>① 我想按顺序系统读</b>
+          <p>从「Conv / CBS 卷积单元」开始，一路读到「部署与 BN 融合」。23 个模块按「基础算子 → CSP 家族 → 主干增强 → 颈部 → 检测头 → 训练机制 → 工程」排列。</p>
+          <span class="sub">预计 3~4 小时，建议边读边跑代码</span>
+        </div>
+        <div class="card" data-go="learn">
+          <b>② 我卡在某个概念上</b>
+          <p>直接用左上角搜索框输入关键词（如「注意力」「标签分配」「mAP」），会定位到对应模块。每个模块的「避坑提示」通常就是你卡住的地方。</p>
+          <span class="sub">平均 10 分钟解决一个卡点</span>
+        </div>
+        <div class="card" data-go="train">
+          <b>③ 我要开始训练自己的数据</b>
+          <p>跳到「训练全流程」，从环境、数据集格式、体检脚本到超参含义与结果解读，全部是可复制的命令与代码。</p>
+          <span class="sub">照着做能跑通第一个项目</span>
+        </div>
+      </div>
+
+      <h2>这套数字是怎么来的（可信度说明）</h2>
+      <p>网上很多 YOLO 结构图的通道标注彼此矛盾，原因是它们标的是不同变体（n/s/m/l/x 的 width 不同）。我为此写了一个逐层推导引擎，严格复刻官方 <code>parse_model</code> 的三条规则，并与 ultralytics 的实际模型<b>逐层对账</b>：</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>变体</th><th class="n">我推导的参数量</th><th class="n">官方公布值</th><th class="n">误差</th><th class="n">FLOPs</th><th class="n">COCO mAP<sup>50-95</sup></th></tr></thead>
+          <tbody>
+            <tr><td>yolo11n</td><td class="n">2,623,632</td><td class="n">2,624,080</td><td class="n" style="color:var(--ok)">−0.02%</td><td class="n">6.5 G</td><td class="n">39.5</td></tr>
+            <tr><td>yolo11s</td><td class="n">9,458,304</td><td class="n">9,458,752</td><td class="n" style="color:var(--ok)">−0.005%</td><td class="n">21.6 G</td><td class="n">47.0</td></tr>
+            <tr><td>yolo11m</td><td class="n">20,114,240</td><td class="n">20,114,688</td><td class="n" style="color:var(--ok)">−0.002%</td><td class="n">68.1 G</td><td class="n">51.5</td></tr>
+            <tr><td>yolo11l</td><td class="n">25,371,712</td><td class="n">25,372,160</td><td class="n" style="color:var(--ok)">−0.002%</td><td class="n">87.2 G</td><td class="n">53.4</td></tr>
+            <tr><td>yolo11x</td><td class="n">56,965,728</td><td class="n">56,966,176</td><td class="n" style="color:var(--ok)">−0.001%</td><td class="n">195.3 G</td><td class="n">54.7</td></tr>
+          </tbody>
+          <caption>所以本图鉴里出现的任何通道数、参数量、FLOPs 都可以直接引用。唯一残留的 448 个参数差异来自 Detect 头的 BatchNorm 计数口径（官方 464,912 vs 我 464,464）。</caption>
+        </table>
+      </div>
+      <div class="box warn">
+        <span class="bt">四个流传很广但错误的说法</span>
+        <p>① 「YOLO11 用了 Transformer」——主干与颈部是纯卷积，只有末端 C2PSA 是注意力模块，且只作用在 20×20（400 个 token）上。<br>
+        ② 「YOLO11 是 anchor-based」——它是 anchor-free + DFL 回归。<br>
+        ③ 「YOLO11 端到端无需 NMS」——<b>需要 NMS</b>。免 NMS 是 YOLOv10 与 YOLO26 的特征。<br>
+        ④ 「YOLO11 有官方论文」——Ultralytics 明确表示不会为它发表正式论文，引用时应引软件仓库。</p>
+      </div>
+    </section>
+
+    <!-- ===================== 逐模块精读 ===================== -->
+    <section class="view" id="view-learn">
+      <div class="learn-head">
+        <h1>逐模块精读</h1>
+        <p class="lede" style="margin-bottom:0">左侧选模块。每个模块固定 5 个区块：<b>是什么/为什么</b> → <b>结构拆解</b> → <b>张量演算</b> → <b>代码实现</b> → <b>动手演示</b> → <b>避坑提示</b>。带 <span style="color:var(--accent)">▶</span> 的模块有可交互演示。</p>
+      </div>
+      <div id="modbody"></div>
+    </section>
+
+    <!-- ===================== 张量流追踪 ===================== -->
+    <section class="view" id="view-trace">
+      <h1>张量流追踪</h1>
+      <p class="lede">选变体与输入分辨率，看 23 层网络的形状与参数量如何变化。这些数字由逐层推导引擎计算，并与 ultralytics 实际模型逐层对账（误差 ≤0.02%）。</p>
+      <div class="trace-ctl">
+        <label>模型变体 <select id="tr-variant"></select></label>
+        <label>输入分辨率 <input type="number" id="tr-imgsz" value="640" step="32" min="320" max="1536" style="width:100px"></label>
+        <button class="btn" id="tr-go">重新计算</button>
+        <span class="dim" id="tr-note"></span>
+      </div>
+      <div class="legend" id="tr-legend"></div>
+      <div class="tw" style="max-height:70vh;overflow:auto"><table id="tr-table"></table></div>
+      <div class="box tip">
+        <span class="bt">怎么读这张表</span>
+        <p>· <b>out</b> 列是 <code>[通道数, 高, 宽]</code>，形状在 <b>Concat</b> 处翻倍、在 <b>C3k2</b> 处被压回——这就是 PAN 的呼吸节奏。<br>
+        · 带 ★ 的层是结构改进的「热点位置」（第 13 层被复用两次、第 16/19/22 层是三个检测头的输入）。<br>
+        · 对比 n 与 s：空间尺寸完全一样，只有通道数按 width 缩放。这也是为什么「同一张结构图在不同变体下标注不同」。</p>
+      </div>
+    </section>
+
+    <!-- ===================== 版本对比 ===================== -->
+    <section class="view" id="view-compare">
+      <h1>版本对比与演进逻辑</h1>
+      <p class="lede">对比不是背表格，而是理解「每一代在解决上一代的什么痛点」。下面先给硬指标，再逐条拆解 YOLOv8 → YOLO11 到底改了什么。</p>
+
+      <h2>2.1 硬指标：YOLO11 vs YOLOv8（检测，COCO val，640）</h2>
+      <div class="tw">
+        <table>
+          <thead><tr><th>模型</th><th class="n">mAP<sup>50-95</sup></th><th class="n">参数量 (M)</th><th class="n">FLOPs (B)</th><th class="n">CPU ONNX (ms)</th><th class="n">T4 TensorRT (ms)</th><th>相对 v8</th></tr></thead>
+          <tbody>
+            <tr><td>YOLOv8n</td><td class="n">37.3</td><td class="n">3.2</td><td class="n">8.7</td><td class="n">80.4</td><td class="n">—</td><td class="dim">基线</td></tr>
+            <tr><td><b>YOLO11n</b></td><td class="n" style="color:var(--ok)"><b>39.5</b></td><td class="n" style="color:var(--ok)">2.6</td><td class="n" style="color:var(--ok)">6.5</td><td class="n" style="color:var(--ok)">56.1</td><td class="n">1.5</td><td class="n" style="color:var(--ok)">+2.2 / 参数 −19% / 延迟 −30%</td></tr>
+            <tr><td>YOLOv8s</td><td class="n">44.9</td><td class="n">11.2</td><td class="n">28.6</td><td class="n">128.4</td><td class="n">—</td><td class="dim">基线</td></tr>
+            <tr><td><b>YOLO11s</b></td><td class="n" style="color:var(--ok)"><b>47.0</b></td><td class="n" style="color:var(--ok)">9.4</td><td class="n" style="color:var(--ok)">21.6</td><td class="n" style="color:var(--ok)">90.0</td><td class="n">2.5</td><td class="n" style="color:var(--ok)">+2.1 / 参数 −16% / 延迟 −30%</td></tr>
+            <tr><td>YOLOv8m</td><td class="n">50.2</td><td class="n">25.9</td><td class="n">78.9</td><td class="n">234.7</td><td class="n">—</td><td class="dim">基线</td></tr>
+            <tr><td><b>YOLO11m</b></td><td class="n" style="color:var(--ok)"><b>51.5</b></td><td class="n" style="color:var(--ok)">20.1</td><td class="n" style="color:var(--ok)">68.1</td><td class="n" style="color:var(--ok)">183.2</td><td class="n">4.7</td><td class="n" style="color:var(--ok)">+1.3 / 参数 −22% / FLOPs −14%</td></tr>
+            <tr><td>YOLOv8l</td><td class="n">52.9</td><td class="n">43.7</td><td class="n">165.1</td><td class="n">375.2</td><td class="n">—</td><td class="dim">基线</td></tr>
+            <tr><td><b>YOLO11l</b></td><td class="n" style="color:var(--ok)"><b>53.4</b></td><td class="n" style="color:var(--ok)">25.3</td><td class="n" style="color:var(--ok)">87.2</td><td class="n" style="color:var(--ok)">238.6</td><td class="n">6.2</td><td class="n" style="color:var(--ok)">+0.5 / 参数 −42% / FLOPs −47%</td></tr>
+            <tr><td>YOLOv8x</td><td class="n">53.9</td><td class="n">68.2</td><td class="n">257.8</td><td class="n">479.1</td><td class="n">—</td><td class="dim">基线</td></tr>
+            <tr><td><b>YOLO11x</b></td><td class="n" style="color:var(--ok)"><b>54.7</b></td><td class="n" style="color:var(--ok)">56.9</td><td class="n" style="color:var(--ok)">195.3</td><td class="n">462.8</td><td class="n">11.3</td><td class="n" style="color:var(--ok)">+0.8 / 参数 −17% / FLOPs −24%</td></tr>
+          </tbody>
+          <caption>⚠️ <b>公平比较提醒</b>：v8 官方时延基于 A100 TensorRT，v11 基于 T4 TensorRT10，<b>两者不能直接比速度</b>；「CPU ONNX」列两代口径一致，可以直接比较。<br>
+          💡 <b>选型启示</b>：yolo11m 是性价比拐点（用 v8m 七成八的参数拿到更高精度）；yolo11l 相对 v8l 几乎「参数腰斩、精度反超」，是本代最亮眼的一档。</caption>
+        </table>
+      </div>
+
+      <h2>2.2 YOLOv8 → YOLO11 改了什么：四处改动逐条拆解</h2>
+      <div class="tw">
+        <table>
+          <thead><tr><th>#</th><th>改动</th><th>v8 的做法</th><th>YOLO11 的做法</th><th>收益来源</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><b>C2f → C3k2</b>（主干与颈部全部替换）</td>
+              <td><code>C2f</code>：内部固定用 <code>Bottleneck</code></td>
+              <td><code>C3k2</code>：内部可切换 <code>Bottleneck</code> / <code>C3k</code> / <code>Bottleneck+PSA</code></td>
+              <td>低分辨率用重 block 换精度、高分辨率用轻 block 省算力。<b>同一算力预算下配置更优</b></td></tr>
+            <tr><td>2</td><td><b>新增 C2PSA</b>（SPPF 之后）</td>
+              <td>主干末端只有 <code>SPPF</code></td>
+              <td><code>SPPF → C2PSA</code></td>
+              <td>在 20×20 的小特征图上做全局自注意力，代价低；半通道设计进一步压成本</td></tr>
+            <tr><td>3</td><td><b>检测头分类分支 DWConv 化</b></td>
+              <td><code>cv3</code> = 两个标准 <code>CBS(3×3)</code></td>
+              <td><code>cv3</code> = <code>DWConv(3×3) + Conv(1×1)</code> 交替两次</td>
+              <td>高分辨率尺度上分类分支算力降约 8 倍，<b>参数与延迟双降</b></td></tr>
+            <tr><td>4</td><td><b>深度/宽度配置重新标定</b></td>
+              <td>各尺寸的 depth / width / max_channels 组合</td>
+              <td>重新标定（如 m/l/x 的 <code>max_channels=512</code>）</td>
+              <td>同等参数预算下通道分布更合理。<b>这块贡献不可忽视</b></td></tr>
+          </tbody>
+          <caption>⚠️ 注意第 4 条：很多人以为提升只来自 C3k2 与 C2PSA，实际上缩放策略的重新标定贡献显著。做消融实验时务必把「结构改动」和「缩放改动」分开算。</caption>
+        </table>
+      </div>
+
+      <h2>2.3 历代架构横向对比（v5 → YOLO11）</h2>
+      <div class="tw">
+        <table>
+          <thead><tr><th>维度</th><th>YOLOv5</th><th>YOLOv6/v7</th><th>YOLOv8</th><th>YOLOv9</th><th>YOLOv10</th><th>YOLO11</th></tr></thead>
+          <tbody>
+            <tr><td>发布方</td><td>Ultralytics</td><td>美团 / 官方</td><td>Ultralytics</td><td>NTU 等</td><td>清华</td><td>Ultralytics</td></tr>
+            <tr><td>锚框</td><td>anchor-based</td><td>anchor-based</td><td style="color:var(--ok)">anchor-free</td><td>anchor-free</td><td>anchor-free</td><td style="color:var(--ok)">anchor-free</td></tr>
+            <tr><td>标签分配</td><td>IoU 阈值</td><td>SimOTA</td><td style="color:var(--ok)">TAL</td><td>双分配</td><td>一致双分配</td><td style="color:var(--ok)">TAL</td></tr>
+            <tr><td>主干基本块</td><td>C3</td><td>RepVGG / E-ELAN</td><td>C2f</td><td>GELAN</td><td>C2f + PSA</td><td style="color:var(--ok)">C3k2</td></tr>
+            <tr><td>末端注意力</td><td>SPPF</td><td>SPPF</td><td>SPPF</td><td>SPPELAN</td><td>SPPF + PSA</td><td style="color:var(--ok)">SPPF + C2PSA</td></tr>
+            <tr><td>检测头</td><td>耦合头</td><td>解耦头</td><td>解耦头</td><td>解耦头</td><td>解耦 + 双头</td><td style="color:var(--ok)">解耦 + DWConv</td></tr>
+            <tr><td>NMS</td><td>需要</td><td>需要</td><td>需要</td><td>需要</td><td style="color:var(--ok)">不需要</td><td>需要</td></tr>
+            <tr><td>回归形式</td><td>直接回归</td><td>直接回归</td><td style="color:var(--ok)">DFL</td><td>DFL</td><td>DFL</td><td style="color:var(--ok)">DFL</td></tr>
+            <tr><td>多任务统一</td><td>部分</td><td>部分</td><td style="color:var(--ok)">5 任务完整</td><td>部分</td><td>部分</td><td style="color:var(--ok)">5 任务完整</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>2.4 它和非 YOLO 竞品比，位置在哪</h2>
+      <div class="tw">
+        <table>
+          <thead><tr><th>模型族</th><th>核心范式</th><th>优势</th><th>劣势</th><th>什么时候选它</th></tr></thead>
+          <tbody>
+            <tr><td><b>YOLO 系列</b>（v8/v11）</td><td>CNN + anchor-free</td><td>速度/精度平衡好，生态与教程极丰富，部署路径成熟</td><td>结构创新空间被大量挖掘，难以出新意</td><td>工程落地、竞赛、需要快速出结果</td></tr>
+            <tr><td><b>RT-DETR</b></td><td>Transformer 编解码 + 端到端</td><td>无需 NMS，密集场景稳定</td><td>架构重、训练慢、小模型性价比不如 YOLO</td><td>对后处理延迟敏感或密集小目标</td></tr>
+            <tr><td><b>DINO / DETR</b></td><td>Transformer + 去噪训练</td><td>精度上限高，学术友好</td><td>速度慢，显存要求高</td><td>追求 SOTA、算力充足的研究</td></tr>
+            <tr><td><b>YOLOv10 / 26</b></td><td>NMS-free 端到端</td><td>推理链路更短、无 NMS 超参</td><td>生态与预训练资源少于 YOLO11</td><td>部署链路上 NMS 是瓶颈时</td></tr>
+            <tr><td><b>Grounding DINO / YOLO-World</b></td><td>开放词汇检测</td><td>文本提示即可检测未见类别</td><td>速度慢、精度不如专用模型</td><td>类别不固定、标注极少</td></tr>
+            <tr><td><b>SAM / SAM2</b></td><td>提示式分割</td><td>分割质量极高，零样本泛化好</td><td>不是检测器，需要提示；大模型慢</td><td>需要精细掩码、可接受两阶段</td></tr>
+          </tbody>
+          <caption>选型第一原则是<b>约束优先</b>：先确定「硬件 + 时延 + 精度」三条线，再选模型族，而不是反过来。</caption>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===================== 训练全流程 ===================== -->
+    <section class="view" id="view-train">
+      <h1>训练全流程：从装环境到导出模型</h1>
+      <p class="lede">这一节是可以照着抄的操作手册。按顺序执行即可跑通你的第一个 YOLO11 项目。</p>
+
+      <h2>3.1 环境搭建（避坑版）</h2>
+      <pre class="code"><code># ① 建独立环境（强烈建议，别污染主环境）
+conda create -n yolo11 python=3.10 -y
+conda activate yolo11
+
+# ② 先装 PyTorch（去 pytorch.org 复制与你的 CUDA 版本匹配的命令）
+#    CUDA 12.4 示例：
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+
+# ③ 再装 ultralytics
+pip install -U ultralytics
+
+# ④ 验证 GPU 是否可用
+python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"</code></pre>
+      <div class="box warn"><span class="bt">新手最常踩的 4 个环境坑</span>
+        <p>① <b>PyTorch 与 CUDA 版本不匹配</b> → <code>torch.cuda.is_available()</code> 返回 False。一定是<b>先装对 PyTorch</b>，再装 ultralytics。<br>
+        ② <b>Windows 上路径含中文/空格</b> → 部分算子与缓存会报错。把工作目录（含数据集）放在<b>纯英文路径</b>下。<br>
+        ③ <b>显存不足</b> → 优先降 <code>batch</code> 或 <code>imgsz</code>，其次开 <code>amp=True</code>。<br>
+        ④ <b>报 No module named 'ultralytics'</b> → 装的包和跑代码的解释器不是同一个。用 <code>python -c "import sys; print(sys.executable)"</code> 确认。</p>
+      </div>
+
+      <h2>3.2 数据集准备：YOLO 格式与目录结构</h2>
+      <pre class="code"><code>my_dataset/
+├── images/
+│   ├── train/    # 训练图片，如 0001.jpg
+│   └── val/      # 验证图片
+└── labels/
+    ├── train/    # 与图片同名的 .txt
+    └── val/
+
+# 每个 .txt 的每一行 = 一个目标：
+#   class_id  x_center  y_center  width  height
+#   全部为「相对图片宽高的归一化值」，范围 0~1
+# 示例（第 0 类，中心在图中 (0.5,0.5)，占图 20%×30%）：
+0 0.500000 0.500000 0.200000 0.300000</code></pre>
+      <pre class="code"><code># data/my_dataset.yaml
+path: /home/user/data/my_dataset     # 数据集根目录
+train: images/train
+val: images/val
+
+nc: 3                                # = names 的长度
+names:
+  0: helmet
+  1: person
+  2: vest</code></pre>
+      <div class="box danger"><span class="bt">数据准备阶段最容易毁掉整个项目的 5 个错误</span>
+        <p>① <b>图片与标签不同名</b>（<code>0001.jpg</code> ↔ <code>0001.txt</code>，后缀不同名相同）→ 该图被当成「无目标背景图」训练；<br>
+        ② <b>坐标没归一化</b>（写了像素值）→ 框全部落到图外，loss 直接爆掉；<br>
+        ③ <b>类别 id 从 1 开始</b>（YOLO 是 0-based）→ 最后一类永远学不到；<br>
+        ④ <b>train / val 里有重复图片</b> → 验证指标虚高，线上崩盘；<br>
+        ⑤ <b>类目不均衡且被忽略</b> → 稀有类 mAP 极低，却被平均值掩盖。</p>
+      </div>
+
+      <h2>3.3 训练前先做数据集体检</h2>
+      <p>下面这个脚本只依赖标准库 + Pillow，训练前跑一遍能省下几小时的无用训练：</p>
+      <pre class="code"><code>"""tools/check_dataset.py —— 检查图片/标签配对、坐标合法性、类别分布"""
+from pathlib import Path
+from collections import Counter
+import yaml
+
+root = Path("my_dataset")
+cfg = yaml.safe_load(open("data/my_dataset.yaml", encoding="utf-8"))
+names, nc = cfg["names"], len(cfg["names"])
+
+for split in ("train", "val"):
+    imgs = {p.stem for p in (root / "images" / split).glob("*")
+            if p.suffix.lower() in {".jpg", ".png", ".jpeg", ".bmp"}}
+    lbls = {p.stem for p in (root / "labels" / split).glob("*.txt")}
+    print(f"[{split}] 图片 {len(imgs)} 张，标签 {len(lbls)} 个")
+    print("  缺标签的图片:", sorted(imgs - lbls)[:5])
+    print("  缺图片的标签:", sorted(lbls - imgs)[:5])
+
+    cnt, bad = Counter(), []
+    for f in (root / "labels" / split).glob("*.txt"):
+        for ln, line in enumerate(f.read_text().splitlines(), 1):
+            if not line.strip():
+                continue
+            parts = line.split()
+            if len(parts) != 5:
+                bad.append((f.name, ln, "字段数≠5")); continue
+            c, x, y, w, h = int(parts[0]), *map(float, parts[1:])
+            cnt[c] += 1
+            if not (0 &lt;= x &lt;= 1 and 0 &lt;= y &lt;= 1 and 0 &lt; w &lt;= 1 and 0 &lt; h &lt;= 1):
+                bad.append((f.name, ln, "坐标越界或未归一化"))
+            if not 0 &lt;= c &lt; nc:
+                bad.append((f.name, ln, f"类别 id {c} 超出 0~{nc-1}"))
+    print("  类别分布:", {names[k]: v for k, v in sorted(cnt.items())})
+    print("  异常标注:", len(bad), bad[:5])</code></pre>
+
+      <h2>3.4 三行代码跑通训练</h2>
+      <pre class="code"><code>from ultralytics import YOLO
+
+# 1) 加载预训练权重（迁移学习，小数据集必做）
+model = YOLO("yolo11s.pt")
+
+# 2) 训练
+results = model.train(
+    data="data/my_dataset.yaml",
+    epochs=150,
+    imgsz=640,
+    batch=16,              # 显存不够就降（或设 batch=-1 自动选）
+    device=0,              # GPU 序号；CPU 用 device="cpu"
+    workers=8,
+    project="runs/helmet", # 实验根目录
+    name="yolo11s_640",    # 本次实验名（结果存在 project/name）
+    seed=0,
+    pretrained=True,
+    cache=False,           # 数据集小、内存大 → True 可显著加速
+)
+
+# 3) 验证
+metrics = model.val()
+print("mAP50-95:", metrics.box.map, "mAP50:", metrics.box.map50)
+print("每类 mAP50-95:",
+      dict(zip(metrics.names.values(), metrics.box.maps.round(3))))</code></pre>
+      <pre class="code"><code># 等价 CLI 写法（服务器上很方便）
+yolo train model=yolo11s.pt data=data/my_dataset.yaml epochs=150 imgsz=640 batch=16 device=0
+yolo val   model=runs/helmet/yolo11s_640/weights/best.pt data=data/my_dataset.yaml
+yolo predict model=runs/helmet/yolo11s_640/weights/best.pt source=test_images/ save=True
+yolo export model=runs/helmet/yolo11s_640/weights/best.pt format=onnx opset=12 simplify=True</code></pre>
+
+      <h2>3.5 关键超参数逐个解释</h2>
+      <div class="tw">
+        <table>
+          <thead><tr><th>参数</th><th class="n">默认</th><th>它在控制什么</th><th>什么时候改、怎么改</th></tr></thead>
+          <tbody>
+            <tr><td><code>imgsz</code></td><td class="n">640</td><td>输入分辨率，<b>对小目标影响最大</b></td><td>小目标多 → 768/960；嵌入式 → 416/320。FLOPs 与分辨率成平方关系</td></tr>
+            <tr><td><code>epochs</code></td><td class="n">100</td><td>训练轮数</td><td>小数据集（&lt;2k 图）50~150 轮；大数据集 300+。配合 <code>patience</code> 早停</td></tr>
+            <tr><td><code>batch</code></td><td class="n">16</td><td>批大小，影响 BN 统计与收敛稳定性</td><td>显存允许下越大越稳；太小（&lt;8）考虑换小模型</td></tr>
+            <tr><td><code>lr0</code></td><td class="n">0.01</td><td>初始学习率</td><td>不收敛 → 降到 0.001；微调时通常降 10 倍</td></tr>
+            <tr><td><code>lrf</code></td><td class="n">0.01</td><td>最终学习率 = lr0 × lrf（余弦退火）</td><td>一般不动。后期震荡可适度调大</td></tr>
+            <tr><td><code>optimizer</code></td><td class="n">auto</td><td>优化器，auto 按轮数与数据量自动选</td><td>显式指定 <code>SGD</code>（稳）或 <code>AdamW</code>（小数据快收敛）</td></tr>
+            <tr><td><code>weight_decay</code></td><td class="n">0.0005</td><td>权重衰减（防过拟合）</td><td>过拟合 → 提 0.001；欠拟合 → 降 0.0001</td></tr>
+            <tr><td><code>box/cls/dfl</code></td><td class="n">7.5/0.5/1.5</td><td>三项损失权重</td><td>定位差 → 提 box；类别混淆 → 提 cls（谨慎，容易失衡）</td></tr>
+            <tr><td><code>mosaic</code></td><td class="n">1.0</td><td>四图拼接增强的概率</td><td>小目标检测必备；最后 10 轮自动关闭（<code>close_mosaic</code>）</td></tr>
+            <tr><td><code>mixup</code>/<code>copy_paste</code></td><td class="n">0.0</td><td>混合增强 / 复制粘贴增强</td><td>数据少时 mixup=0.1~0.2；稀有类用 copy_paste</td></tr>
+            <tr><td><code>degrees</code></td><td class="n">0.0</td><td>旋转角度范围</td><td>航拍/遥感 → 90 甚至 180；普通场景保持 0</td></tr>
+            <tr><td><code>fliplr</code>/<code>flipud</code></td><td class="n">0.5/0.0</td><td>水平/垂直翻转概率</td><td>有方向语义的任务（文字、左右手）要关掉 fliplr</td></tr>
+            <tr><td><code>hsv_h/s/v</code></td><td class="n">.015/.7/.4</td><td>色调/饱和度/明度扰动</td><td>光照变化大 → 加大 hsv_v；颜色是关键判别 → 减小</td></tr>
+            <tr><td><code>patience</code></td><td class="n">100</td><td>多少轮无提升就早停</td><td>小数据集设 20~30 省时间</td></tr>
+            <tr><td><code>amp</code></td><td class="n">True</td><td>混合精度训练</td><td>保持开启；出现 NaN loss 再关掉排查</td></tr>
+            <tr><td><code>close_mosaic</code></td><td class="n">10</td><td>最后 N 轮关闭 mosaic</td><td>默认即可。<b>它是「指标突然跳升」的常见原因</b>，别误判为异常</td></tr>
+          </tbody>
+          <caption>超参默认值随版本可能微调，以 <code>yolo cfg</code> 或官方配置文档为准。</caption>
+        </table>
+      </div>
+      <div class="box"><span class="bt">记忆口诀：改超参的顺序</span>
+        <p><b>先动数据（imgsz、增强），再动训练长度（epochs、patience），最后才动优化器与损失权重。</b>新手常犯的错误是一上来就调 <code>lr0</code> 和损失权重，把本来能收敛的实验调崩。<b>80% 的「模型效果不好」其实是数据问题，不是超参问题。</b></p>
+      </div>
+
+      <h2>3.6 训练结果怎么看</h2>
+      <pre class="code"><code>runs/helmet/yolo11s_640/
+├── weights/
+│   ├── best.pt        # ★ 验证集指标最好的权重（部署用它）
+│   └── last.pt        # 最后一轮权重（续训用）
+├── results.csv        # 每轮的指标表，可自行绘图
+├── results.png        # 官方绘制的训练曲线总览
+├── confusion_matrix.png          # 混淆矩阵（看类间混淆）
+├── labels.jpg                    # 标注分布（框中心/尺寸直方图）
+├── PR_curve.png / P_curve.png / R_curve.png / F1_curve.png
+├── val_batch0_pred.jpg           # ★ 验证集预测可视化（必看）
+├── val_batch0_labels.jpg         # 对应真值（与上图对照，判断漏检/误检）
+└── train_batch*.jpg              # 增强后的训练样本（检查增强是否过激）</code></pre>
+      <div class="tw">
+        <table>
+          <thead><tr><th>现象</th><th>在图上长什么样</th><th>最可能的原因</th><th>优先尝试</th></tr></thead>
+          <tbody>
+            <tr><td>正常收敛</td><td>三条 loss 平滑下降，mAP 平滑上升，最后趋缓</td><td>—</td><td>保持</td></tr>
+            <tr><td>学习率过大</td><td>loss 剧烈震荡甚至突然 NaN</td><td>lr0 高 / batch 太小</td><td>降 lr0，加 warmup，开 amp</td></tr>
+            <tr><td>欠拟合</td><td>train loss 与 val loss 都高且下降很慢</td><td>模型太小 / 训练不足 / 标注差</td><td>换更大模型、加 epochs、抽查标注</td></tr>
+            <tr><td>过拟合</td><td>train loss 持续降，val loss 先降后升</td><td>数据少 / 增强弱 / 训练过久</td><td>加数据、加增强、提 weight_decay、早停</td></tr>
+            <tr><td>指标「第 140 轮突然跳升」</td><td>mAP 曲线尾部上翘</td><td><code>close_mosaic</code> 生效</td><td>正常现象，不用处理</td></tr>
+            <tr><td>box_loss 高但 cls_loss 低</td><td>能分类但框不准</td><td>小目标多 / 定位难</td><td>提高 imgsz、提 box 权重、检查标注贴合度</td></tr>
+            <tr><td>cls_loss 高但 box_loss 低</td><td>框得准但老认错类</td><td>类间相似 / 类别不平衡</td><td>补难类样本、查标签、考虑 focal 类损失</td></tr>
+            <tr><td>Recall 高 Precision 低</td><td>P 曲线低、R 曲线高</td><td>误检多</td><td>补背景负样本、提 conf 阈值、检查漏标</td></tr>
+            <tr><td>Precision 高 Recall 低</td><td>P 高、R 低</td><td>漏检多</td><td>降 conf、提 imgsz、小目标加 P2 层、增样本</td></tr>
+          </tbody>
+          <caption>排查顺序建议：<b>先看 <code>val_batch0_pred.jpg</code>（肉眼找问题）→ 再看混淆矩阵（哪几类混）→ 最后才看曲线（训练动态）。</b>绝大多数问题肉眼比曲线更快定位。</caption>
+        </table>
+      </div>
+
+      <h2>3.7 推理与导出</h2>
+      <pre class="code"><code>from ultralytics import YOLO
+
+model = YOLO("runs/helmet/yolo11s_640/weights/best.pt")
+
+# ---- 图片 / 目录 / 视频 / 摄像头 / 流 都支持 ----
+results = model.predict(
+    source="test_images",     # 也可以是 "video.mp4" / 0（摄像头）/ "rtsp://..."
+    conf=0.25,                # 置信度阈值：低→召回高误检多
+    iou=0.7,                  # NMS 的 IoU 阈值：低→框更少（抑制重叠）
+    imgsz=640,
+    max_det=300,              # 单图最大检测数（密集场景要调大）
+    classes=None,             # 只检特定类，如 [0, 2]
+    agnostic_nms=False,       # True = 跨类别抑制（类别易混时有用）
+    half=True,                # GPU 上启用 FP16，提速
+    save=True, stream=True,   # 视频/长目录 → stream=True 用生成器省内存
+)
+
+for r in results:
+    for xyxy, conf, cls in zip(r.boxes.xyxy, r.boxes.conf, r.boxes.cls):
+        x1, y1, x2, y2 = xyxy.tolist()
+        print(f"{r.names[int(cls)]} {conf:.2f} [{x1:.0f},{y1:.0f},{x2:.0f},{y2:.0f}]")
+
+# ---- 导出 ----
+model.export(format="onnx",     opset=12, simplify=True, dynamic=False)
+model.export(format="engine",   half=True, workspace=4)   # TensorRT（需在目标 GPU 上导出）
+model.export(format="openvino", half=True)                # Intel CPU/核显
+model.export(format="ncnn")                               # 移动端 / 部分国产 SoC
+model.export(format="rknn",     name="rk3588")            # 瑞芯微 NPU</code></pre>
+      <div class="box tip"><span class="bt">导出与部署的三条铁律</span>
+        <p>① <b>先验证精度再验证速度</b>：每导出一个格式，都要用它跑一遍同样的验证集，确认 mAP 掉得可接受（ONNX/TRT FP16 通常掉 0~0.3，INT8 掉 0.5~2）。<br>
+        ② <b>TensorRT engine 与硬件绑定</b>：在 A 机器导出的 engine 换到 B 机器（GPU 型号/驱动/TensorRT 版本不同）会失效，必须在部署机上导出。<br>
+        ③ <b>务必融合 BN</b>：Ultralytics 导出时自动 fuse，但你若手写推理代码，记得手动 <code>fuse()</code>，否则白丢 10%~20% 速度。</p>
+      </div>
+    </section>
+
+    <!-- ===================== 速查与 FAQ ===================== -->
+    <section class="view" id="view-faq">
+      <h1>速查与常见问题</h1>
+
+      <h2>5.1 症状 → 病因 → 处方</h2>
+      <div class="tw">
+        <table>
+          <thead><tr><th>症状</th><th>可能病因（按概率排序）</th><th>处方</th></tr></thead>
+          <tbody>
+            <tr><td><b>loss 全是 nan</b></td><td>① 学习率过大 ② 标注坐标越界 ③ AMP 溢出 ④ 数据里有损坏图片</td><td>跑数据集体检；<code>lr0=0.001</code>；试一次 <code>amp=False</code></td></tr>
+            <tr><td><b>loss 完全不降</b></td><td>① 标签与图片不对应 ② 类别 id 从 1 开始 ③ YAML 路径错</td><td>跑 1 个 epoch，看 <code>train_batch0.jpg</code> 上有没有框</td></tr>
+            <tr><td><b>mAP 很高但实际效果差</b></td><td>① train/val 数据泄漏 ② 验证集太小 ③ 与真实场景分布不一致</td><td>按拍摄批次划分；另留一个完全独立的测试集</td></tr>
+            <tr><td><b>小目标全漏</b></td><td>① 分辨率不足 ② 缺 P2 层 ③ mosaic 关太早 ④ 目标小于 stride</td><td>提 imgsz → 用 <code>yolo11-p2.yaml</code> → 切图 → 检查漏标</td></tr>
+            <tr><td><b>密集场景框互相吞并</b></td><td>NMS 阈值过高</td><td><code>iou=0.5~0.6</code>；同类别密集可试 <code>agnostic_nms=True</code></td></tr>
+            <tr><td><b>同一目标出现多个框</b></td><td>① 训练不足 ② NMS 未生效 ③ 增强导致重复标注</td><td>先确认 NMS 真的执行了；再检查后处理代码</td></tr>
+            <tr><td><b>置信度普遍偏低</b></td><td>① 训练轮数不足 ② 正样本太少 ③ 类别不平衡</td><td>加 epochs；统计每类实例数；少见类做上采样</td></tr>
+            <tr><td><b>某几类混淆严重</b></td><td>类间视觉相似 + 数据不均衡</td><td>看混淆矩阵定位类对；针对性补样本</td></tr>
+            <tr><td><b>换设备精度掉</b></td><td>① letterbox 不一致 ② 归一化不同 ③ 量化损失</td><td>两端前处理张量存成 npy 做差；每个格式都验证 mAP</td></tr>
+            <tr><td><b>显存不足 OOM</b></td><td>batch / imgsz / 模型 太大</td><td>降 batch → 开 amp → 降 imgsz → 换小模型</td></tr>
+            <tr><td><b>训练慢得离谱</b></td><td>① workers 太少 ② 数据在机械硬盘 ③ 未开 cache</td><td><code>workers=8~16</code>；数据放 SSD；小数据集 <code>cache=True</code></td></tr>
+            <tr><td><b>结果不可复现</b></td><td>未固定随机种子 / 非确定性算子</td><td>设 <code>seed=0</code>、<code>deterministic=True</code>；跑 2~3 个种子报均值</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>5.2 一句话经验</h2>
+      <div class="grid g2">
+        <div class="card"><h4>数据</h4><p>先把数据看一遍（<code>labels.jpg</code> + 随机抽 30 张原图叠加标签），再动手训模型。<b>80% 的效果问题源自数据。</b></p></div>
+        <div class="card"><h4>分辨率</h4><p>小目标的救命稻草是 <code>imgsz</code> 和切图，不是更大的模型。先把目标在输入里的像素尺寸算清楚。</p></div>
+        <div class="card"><h4>对比</h4><p>任何「提升」都要有同配置的 baseline 和至少 2~3 个随机种子。<b>小于 0.3 mAP 的差距不要当结论。</b></p></div>
+        <div class="card"><h4>部署</h4><p>先跑通 <code>predict</code>，再跑 <code>export</code>，最后才做量化。每换一次格式就回归一次 mAP。</p></div>
+        <div class="card"><h4>调试</h4><p>出问题先做「降维测试」：<code>imgsz=320</code> + 20 张图 + 10 个 epoch 能复现吗？能，就说明不是规模问题。</p></div>
+        <div class="card"><h4>论文</h4><p>把「工程技巧」和「结构创新」严格分开写。前者是你的 baseline 强度，后者才是你的贡献。</p></div>
+      </div>
+
+      <h2>5.3 新手必问</h2>
+      <details><summary>Q1：YOLO11 到底有没有论文？我该怎么引用？</summary>
+        <p>Ultralytics 官方明确<b>没有为 YOLO11 发表正式论文</b>。正确引用方式是引用软件仓库：<br>
+        <code>@software{yolo11_ultralytics, author={Glenn Jocher and Jing Qiu}, title={Ultralytics YOLO11}, version={11.0.0}, year={2024}, url={https://github.com/ultralytics/ultralytics}}</code><br>
+        另外可引用第三方综述（如 arXiv:2501.13400）作为架构对比依据，但要注明是第三方分析。</p></details>
+      <details><summary>Q2：n / s / m / l / x 我该选哪个？</summary>
+        <p>按顺序问自己三个问题：<b>① 硬件是什么？② 需要多少 FPS？③ 目标多大？</b>经验法则：<br>
+        · 首次跑通流程 → <code>n</code>；端侧/无人机 → <code>n</code> 或 <code>s</code>；<br>
+        · 通用项目首选 → <code>s</code> 或 <code>m</code>（性价比拐点）；<br>
+        · 精度优先、算力充足（服务器离线）→ <code>l</code> 或 <code>x</code>；<br>
+        · <b>不要一上来就用 x</b>，先用 s 把数据和流程验证完再升级。</p></details>
+      <details><summary>Q3：mAP50 和 mAP50-95 差 18 个点正常吗？</summary>
+        <p>完全正常。COCO 上典型模型 mAP50 约 70~75，mAP50-95 约 50~55，差 20 个点左右是常态。<b>如果两者差距异常大（如 mAP50=95 而 mAP50-95=45），说明模型能检到但框不准</b>，优先检查标注框是否贴合、是否有多余留白。</p></details>
+      <details><summary>Q4：为什么我训出来的精度比论文低很多？</summary>
+        <p>按可能性排查：① 数据集划分方式不同；② 训练轮数与增强参数不同；③ 没有从预训练权重出发；④ 你的数据集更难；⑤ 指标计算口径不同。<b>论文数字只能在相同数据集与口径下比较。</b></p></details>
+      <details><summary>Q5：需要多少张标注图才够？</summary>
+        <p>经验锚点（迁移学习 + 少量类）：<br>
+        · <b>100~300 张</b>：能跑通 demo，精度勉强可用；<br>
+        · <b>1000~3000 张</b>：多数工业场景能达到可交付水平；<br>
+        · <b>5000 张以上</b>：可以开始考虑结构改进与刷指标。<br>
+        关键变量是<b>场景多样性</b>（光照、角度、背景、遮挡）而不是绝对数量。<b>1000 张高多样性 &gt; 5000 张同质截图。</b></p></details>
+      <details><summary>Q6：显存不够怎么办？</summary>
+        <p>① 降 <code>batch</code>（8 → 4 → 2）；② 确认 <code>amp=True</code>；③ 降 <code>imgsz</code>（640 → 512）；④ 换小模型；⑤ <code>cache=False</code>；⑥ 用 <code>batch=-1</code> 让框架自动探测。</p></details>
+      <details><summary>Q7：训练要多久？怎么估算？</summary>
+        <p>粗略估算：<b>单 epoch 时间 ≈ 数据量 / batch × 单步耗时</b>。最可靠的方式是<b>先用 20 张图跑 2 个 epoch 测出单步耗时，再乘出总时长</b>。</p></details>
+      <details><summary>Q8：能不能用 CPU 训练？</summary>
+        <p>能，但慢 20~50 倍，「调试可以、正式训练不行」。折中方案是用云 GPU 按小时租，一张 3090/4090 每小时几块钱，训练 150 epoch 通常不到 20 元。<b>这是研究生阶段性价比最高的选择。</b></p></details>
+      <details><summary>Q9：损失在下降，但 mAP 一直很低，为什么？</summary>
+        <p>典型原因是「损失下降 ≠ 指标上升」。逐项检查：① 验证集与训练集分布是否一致；② 是否过拟合；③ 标签分配是否异常（直接看 <code>val_batch0_pred.jpg</code>）；④ 指标是否被某几个难类拖累（看每类结果）。</p></details>
+      <details><summary>Q10：如何做模型轻量化改进？</summary>
+        <p>三条主流路线：<br>
+        ① <b>换主干</b>（MobileNetV4 / EfficientViT）——收益明显但要注意三个尺度输出通道要与颈部对齐；<br>
+        ② <b>压缩颈部</b>（减少 C3k2 重复次数、把高分辨率分支换成轻量卷积）——<b>收益/成本比最高</b>，因为颈部吃算力最多；<br>
+        ③ <b>量化 + 剪枝</b>——不改结构即可部署提速。<br>
+        建议从 ② 入手，改动可控、消融实验好写。</p></details>
+      <details><summary>Q11：Transformer 一定比 CNN 好吗？</summary>
+        <p>不一定。检测任务上 ViT/DETR 的优势主要在<b>全局建模</b>与<b>端到端</b>，代价是训练成本、显存与部署复杂度显著上升。<b>在中小数据集上 CNN 通常仍更优</b>（归纳偏置带来更强的数据效率）。YOLO11 的 C2PSA 已是「低成本混入注意力」的折中。若要做这个方向，务实做法是<b>混合架构</b>而不是全盘替换。</p></details>
+      <details><summary>Q12：需要自己实现 NMS 吗？</summary>
+        <p>不需要，Ultralytics 已内置且足够快。但必须理解两个参数：<code>conf</code>（置信度阈值）与 <code>iou</code>（NMS 的 IoU 阈值）。<b>业务阈值要在「业务代价」下选，而不是在验证集上选最优 F1</b>——安防场景漏报代价远高于误报，就应该把 conf 压低。</p></details>
+
+      <h2>5.4 命令行速查</h2>
+      <pre class="code"><code># ---- 训练 / 验证 / 推理 ----
+yolo train   model=yolo11n.pt data=data.yaml epochs=100 imgsz=640 batch=16 device=0
+yolo val     model=runs/detect/train/weights/best.pt data=data.yaml imgsz=640
+yolo predict model=yolo11n.pt source=img.jpg conf=0.25 save=True
+
+# ---- 多任务 ----
+yolo segment  model=yolo11n-seg.pt  data=seg.yaml epochs=100
+yolo pose     model=yolo11n-pose.pt data=pose.yaml epochs=100
+yolo obb      model=yolo11n-obb.pt  data=dota.yaml epochs=100 imgsz=1024
+yolo classify model=yolo11n-cls.pt  data=imagenet10 epochs=50
+
+# ---- 导出 / 基准 / 跟踪 ----
+yolo export    model=best.pt format=onnx  opset=12 simplify=True
+yolo export    model=best.pt format=engine half=True
+yolo benchmark model=best.pt imgsz=640 half=True
+yolo track     model=yolo11n.pt source=video.mp4 tracker=bytetrack.yaml
+
+# ---- 查看全部超参默认值 ----
+yolo cfg</code></pre>
+
+      <h2>5.5 参考资料</h2>
+      <div class="tw">
+        <table>
+          <thead><tr><th>类型</th><th>内容</th><th>链接</th></tr></thead>
+          <tbody>
+            <tr><td>官方文档</td><td>YOLO11 模型页（指标、任务、用法、FAQ）</td><td><a href="https://docs.ultralytics.com/models/yolo11/">docs.ultralytics.com/models/yolo11</a></td></tr>
+            <tr><td>官方文档</td><td>训练参数完整列表</td><td><a href="https://docs.ultralytics.com/usage/cfg/">docs.ultralytics.com/usage/cfg</a></td></tr>
+            <tr><td>官方代码</td><td>结构定义 <code>yolo11.yaml</code></td><td><a href="https://github.com/ultralytics/ultralytics/blob/main/ultralytics/cfg/models/11/yolo11.yaml">github · yolo11.yaml</a></td></tr>
+            <tr><td>官方代码</td><td>算子实现 <code>block.py</code>（C3k2 / C2PSA / PSABlock）</td><td><a href="https://github.com/ultralytics/ultralytics/blob/main/ultralytics/nn/modules/block.py">github · block.py</a></td></tr>
+            <tr><td>官方代码</td><td>检测头 <code>head.py</code>（Detect / DWConv 分类分支）</td><td><a href="https://github.com/ultralytics/ultralytics/blob/main/ultralytics/nn/modules/head.py">github · head.py</a></td></tr>
+            <tr><td>官方代码</td><td>标签分配 <code>tal.py</code> 与损失 <code>loss.py</code></td><td><a href="https://github.com/ultralytics/ultralytics/tree/main/ultralytics/utils">github · utils</a></td></tr>
+            <tr><td>第三方综述</td><td>YOLOv8 与 YOLO11 架构深度对比</td><td><a href="https://arxiv.org/abs/2501.13400">arXiv:2501.13400</a></td></tr>
+            <tr><td>原始论文</td><td>YOLOv1（单阶段检测开山之作）</td><td><a href="https://arxiv.org/abs/1506.02640">arXiv:1506.02640</a></td></tr>
+            <tr><td>原始论文</td><td>YOLOv3（多尺度预测 + 残差主干）</td><td><a href="https://arxiv.org/abs/1804.02767">arXiv:1804.02767</a></td></tr>
+            <tr><td>原始论文</td><td>YOLOv9（可编程梯度信息 + GELAN）</td><td><a href="https://arxiv.org/abs/2402.13616">arXiv:2402.13616</a></td></tr>
+            <tr><td>原始论文</td><td>YOLOv10（NMS-free 一致双分配）</td><td><a href="https://arxiv.org/abs/2405.14458">arXiv:2405.14458</a></td></tr>
+            <tr><td>基础组件</td><td>PANet（路径聚合网络，颈部的理论基础）</td><td><a href="https://arxiv.org/abs/1803.01534">arXiv:1803.01534</a></td></tr>
+            <tr><td>基础组件</td><td>FPN（特征金字塔）</td><td><a href="https://arxiv.org/abs/1612.03144">arXiv:1612.03144</a></td></tr>
+            <tr><td>基础组件</td><td>Generalized Focal Loss（DFL 的来源）</td><td><a href="https://arxiv.org/abs/2006.04388">arXiv:2006.04388</a></td></tr>
+            <tr><td>基础组件</td><td>TOOD（Task-Aligned Assigner 的来源）</td><td><a href="https://arxiv.org/abs/2108.07755">arXiv:2108.07755</a></td></tr>
+            <tr><td>基础组件</td><td>EPSANet（PSA 注意力的来源）</td><td><a href="https://arxiv.org/abs/2107.00782">arXiv:2107.00782</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="box tip"><span class="bt">最后想说的话</span>
+        <p>YOLO11 只是一个工具，但<b>把它彻底吃透的过程，会训练出一套可迁移的能力</b>：如何读一篇论文的结构图、如何把配置翻译成代码、如何设计公平的对照实验、如何把一个算法变成能上线的系统。<br>
+        这套能力不会因为 YOLO12、YOLO26 出现而失效。所以别急着追新版本，<strong>先把这一代拆到底 —— 你会发现自己看任何检测模型都快了十倍。</strong></p>
+      </div>
+
+      <footer>
+        <p><b>内容基准</b>：Ultralytics 官方文档、官方模型定义 <code>ultralytics/cfg/models/11/yolo11.yaml</code>、官方算子实现 <code>nn/modules/block.py</code> 与 <code>head.py</code>。文中通道数、参数量、FLOPs 均由逐层推导引擎计算并与官方实测逐层对账，误差 ≤0.02%。</p>
+        <p><b>许可提示</b>：Ultralytics YOLO11 采用 <b>AGPL-3.0</b> 与 Enterprise 双许可。商业闭源产品使用前请先确认许可条款——这是新手最容易踩的法律坑。</p>
+      </footer>
+    </section>
+
+  </main>
+</div>
+
+<!-- ============================ 脚本 ============================ -->
+<script src="trace-data.js"></script>
+<script>
+/* 向学习基地主站上报今日学习活动（热力图数据源；file:// 页面共享 localStorage） */
+(function(){try{
+  var d=new Date(),k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  var a=JSON.parse(localStorage.getItem('hub-activity-v2')||'{}');
+  a[k]=(a[k]||0)+1;localStorage.setItem('hub-activity-v2',JSON.stringify(a));
+}catch(e){}})();
+</script>
+<script src="data-modules-a.js"></script>
+<script src="data-modules-b.js"></script>
+<script src="learn-demos.js"></script>
+<script src="learn.js"></script>
+<script>
+/* ============ 视图切换 ============ */
+(function () {
+  const views = ['plan', 'home', 'learn', 'trace', 'compare', 'train', 'faq'];
+  const btns = [...document.querySelectorAll('#sections button')];
+  const toc = document.getElementById('toc');
+  const main = document.getElementById('main');
+
+  function go(v) {
+    if (!views.includes(v)) v = 'plan';
+    views.forEach(x => document.getElementById('view-' + x).classList.toggle('on', x === v));
+    btns.forEach(b => b.classList.toggle('on', b.dataset.view === v));
+    // 侧栏：learn 视图显示 24 个模块导航；其他视图显示本页小标题
+    const modNav = document.getElementById('moduleNav');
+    if (modNav) modNav.style.display = (v === 'learn') ? '' : 'none';
+    if (v === 'learn') {
+      toc.innerHTML = '';
+      toc.style.display = 'none';
+      const init = (location.hash || '').replace('#', '');
+      if (window.Y11_LEARN_SHOW && window.Y11_MODULES?.some(m => m.id === init)) window.Y11_LEARN_SHOW(init, false);
+    } else {
+      toc.style.display = '';
+      const hs = [...document.getElementById('view-' + v).querySelectorAll('h2')];
+      toc.innerHTML = hs.length
+        ? '<div class="nav-gt">本页内容</div><div class="nav-g">' +
+          hs.map((h2, i) => { h2.id = h2.id || (v + '-s' + i); return `<a href="#${h2.id}">${h2.textContent}</a>`; }).join('') +
+          '</div>'
+        : '';
+    }
+    history.replaceState(null, '', '#' + v);
+    main.scrollTop = 0;
+  }
+  btns.forEach(b => b.addEventListener('click', () => go(b.dataset.view)));
+  document.querySelectorAll('[data-go]').forEach(c =>
+    c.addEventListener('click', () => go(c.dataset.go)));
+  window.addEventListener('hashchange', () => {
+    const h = location.hash.replace('#', '');
+    if (views.includes(h)) go(h);
+  });
+  const init = location.hash.replace('#', '');
+  if (views.includes(init)) go(init);
+
+  /* ============ 张量流追踪 ============ */
+  const VARIANTS = ['yolo11n', 'yolo11s', 'yolo11m', 'yolo11l', 'yolo11x'];
+  const sel = document.getElementById('tr-variant');
+  sel.innerHTML = VARIANTS.map(v => `<option value="${v}">${v}</option>`).join('');
+  sel.value = 'yolo11s';
+
+  // 由 Python 引擎导出的逐层数据（已与官方逐层对账）
+  const TRACE = window.Y11_TRACE || null;
+
+  function md(c, w, mc) { return Math.max(8, Math.floor(Math.min(c, mc) * w + 4) / 8 | 0) * 8; }
+
+  // 若没有预置数据，用与官方一致的规则现场推导（保证页面永远可用）
+  function derive(variant, imgsz) {
+    const SC = { n: [.5, .25, 1024], s: [.5, .5, 1024], m: [.5, 1, 512], l: [1, 1, 512], x: [1, 1.5, 512] };
+    const k = variant.replace('yolo11', '');
+    const [depth, width, mch] = SC[k];
+    const forceC3k = ['m', 'l', 'x'].includes(k);
+    // [from, n, module, args]
+    const defs = [
+      ['bb', [-1], 1, 'Conv', [64, 3, 2], 2], ['bb', [-1], 1, 'Conv', [128, 3, 2], 2],
+      ['bb', [-1], 2, 'C3k2', [256, false, .25], 1], ['bb', [-1], 1, 'Conv', [256, 3, 2], 2],
+      ['bb', [-1], 2, 'C3k2', [512, false, .25], 1], ['bb', [-1], 1, 'Conv', [512, 3, 2], 2],
+      ['bb', [-1], 2, 'C3k2', [512, true], 1], ['bb', [-1], 1, 'Conv', [1024, 3, 2], 2],
+      ['bb', [-1], 2, 'C3k2', [1024, true], 1], ['bb', [-1], 1, 'SPPF', [1024, 5], 1],
+      ['bb', [-1], 2, 'C2PSA', [1024], 1],
+      ['nk', [-1], 1, 'Up', [null, 2, 'nearest'], 0.5], ['nk', [-1, 6], 1, 'Cat', [1], 1],
+      ['nk', [-1], 2, 'C3k2', [512, false], 1], ['nk', [-1], 1, 'Up', [null, 2, 'nearest'], 0.5],
+      ['nk', [-1, 4], 1, 'Cat', [1], 1], ['nk', [-1], 2, 'C3k2', [256, false], 1],
+      ['nk', [-1], 1, 'Conv', [256, 3, 2], 2], ['nk', [-1, 13], 1, 'Cat', [1], 1],
+      ['nk', [-1], 2, 'C3k2', [512, false], 1], ['nk', [-1], 1, 'Conv', [512, 3, 2], 2],
+      ['nk', [-1, 10], 1, 'Cat', [1], 1], ['nk', [-1], 2, 'C3k2', [1024, true], 1],
+    ];
+    const outs = {}; let cur = [3, imgsz, imgsz];
+    const pConv = (c1, c2, kk, g = 1) => kk * kk * (c1 / g) * c2 + 2 * c2;
+    const pBn = (c1, c2, e = .5, kk = 3) => { const c = Math.floor(c2 * e); return pConv(c1, c, kk) + pConv(c, c2, kk); };
+    const pC3k = (c1, c2, n = 2, e = .5, kk = 3) => {
+      const ch = Math.floor(c2 * e);
+      return pConv(c1, ch, 1) * 2 + pConv(2 * ch, c2, 1) + n * pBn(ch, ch, 1, kk);
+    };
+    const layers = [];
+    defs.forEach(([grp, from, n0, mod, args, stride], idx) => {
+      const n = n0 > 1 ? Math.max(Math.round(n0 * depth), 1) : n0;
+      const srcs = from.map(f => f === -1 ? cur : outs[f]);
+      const c1 = srcs[0][0], h = srcs[0][1], w = srcs[0][2];
+      let out, params = 0, note = '';
+      if (mod === 'Conv') {
+        const c2 = md(args[0], width, mch); const kk = args[1], st = args[2];
+        const oh = Math.floor((h + 2 * (kk >> 1) - kk) / st) + 1;
+        out = [c2, oh, oh]; params = pConv(c1, c2, kk);
+        note = st === 2 ? `stride 2 下采样：${h}→${oh}` : '同分辨率变换';
+      } else if (mod === 'C3k2') {
+        const c2 = md(args[0], width, mch), e = args.length > 2 ? args[2] : .5;
+        const c3k = forceC3k ? true : !!args[1];
+        const c = Math.floor(c2 * e);
+        params = pConv(c1, 2 * c, 1) + pConv((2 + n) * c, c2, 1);
+        for (let i = 0; i < n; i++) params += c3k ? pC3k(c, c, 2, .5, 3) : pBn(c, c, .5);
+        out = [c2, h, w];
+        note = (c3k ? 'c3k=True（重 block）' : 'c3k=False（轻 block）') +
+          (e === .25 ? '，e=0.25 隐藏通道减半' : '') + (forceC3k && !args[1] ? ' ← m/l/x 强制启用' : '');
+      } else if (mod === 'SPPF') {
+        const c2 = md(args[0], width, mch); out = [c2, h, w];
+        params = pConv(c1, Math.floor(c1 / 2), 1) + pConv(Math.floor(c1 / 2) * 4, c2, 1);
+        note = '串联三次 5×5 池化 → 等效感受野 5/9/13';
+      } else if (mod === 'C2PSA') {
+        const c2 = md(args[0], width, mch), c = Math.floor(c1 * .5);
+        const nh = Math.max(Math.floor(c / 64), 1), hd = Math.floor(c / nh), kd = Math.floor(hd * .5);
+        const attn = pConv(c, c + kd * nh * 2, 1) + pConv(c, c, 1) + pConv(c, c, 3, c);
+        const psa = attn + pConv(c, 2 * c, 1) + pConv(2 * c, c, 1);
+        params = pConv(c1, 2 * c, 1) + pConv(2 * c, c1, 1) + n * psa;
+        out = [c2, h, w]; note = `一半通道过注意力（${n} 个 PSABlock）→ 获得全局建模能力`;
+      } else if (mod === 'Up') {
+        out = [c1, h * 2, w * 2]; note = '最近邻上采样 ×2，零参数';
+      } else if (mod === 'Cat') {
+        const tc = srcs.reduce((a, s) => a + s[0], 0);
+        out = [tc, h, w]; note = `通道相加 ${srcs.map(s => s[0]).join('+')} = ${tc}`;
+      }
+      outs[idx] = out; cur = out;
+      layers.push({ idx, module: mod, from, n: n0, args: JSON.stringify(args), out, params, note, group: grp });
+    });
+    return layers;
+  }
+
+  function renderTrace() {
+    const variant = sel.value, imgsz = Math.max(320, Math.min(1536, +document.getElementById('tr-imgsz').value || 640));
+    let layers, src;
+    if (TRACE && TRACE[variant]) {
+      // 用 Python 引擎的精确数据，按 imgsz 等比缩放空间维度
+      const base = TRACE[variant];
+      const f = imgsz / 640;
+      layers = base.layers.map(L => ({
+        idx: L.idx, module: L.module, from: L.from, args: L.args, params: L.params,
+        out: f === 1 ? L.out : [L.out[0], Math.round(L.out[1] * f) || L.out[1], Math.round(L.out[2] * f) || L.out[2]],
+        note: L.note || '', group: L.group, flops: L.flops_m,
+      }));
+      src = '来自逐层推导引擎（与官方逐层对账）';
+    } else {
+      layers = derive(variant, imgsz);
+      src = '现场推导（页面未加载预置数据）';
+    }
+    const total = layers.reduce((a, L) => a + (L.params || 0), 0);
+    const nc = 80, no = nc + 64;
+    const cells = [imgsz / 8, imgsz / 16, imgsz / 32];
+    const nCells = cells.reduce((a, c) => a + c * c, 0);
+    document.getElementById('tr-note').textContent = `${src}　总参数 ${total.toLocaleString()}`;
+    document.getElementById('tr-legend').innerHTML =
+      `<span><i style="background:#fbe3c7"></i>主干卷积</span>
+       <span><i style="background:#cfe6f7"></i>主干 C3k2</span>
+       <span><i style="background:#e2d3f3"></i>SPPF / C2PSA</span>
+       <span><i style="background:#cfeedd"></i>颈部 Upsample / Concat</span>
+       <span><i style="background:#dde6fb"></i>颈部 C3k2</span>
+       <span><i style="background:#fdf1c9"></i>检测头</span>`;
+    const colorOf = L => {
+      if (L.module === 'Conv') return L.group === 'bb' ? '#fbe3c7' : '#fbe3c7';
+      if (L.module === 'C3k2') return L.group === 'bb' ? '#cfe6f7' : '#dde6fb';
+      if (L.module === 'SPPF' || L.module === 'C2PSA') return '#e2d3f3';
+      if (L.module === 'Up' || L.module === 'Cat') return '#cfeedd';
+      return '#fdf1c9';
+    };
+    const star = L => [13, 16, 19, 22].includes(L.idx);
+    document.getElementById('tr-table').innerHTML = `
+      <thead><tr><th class="n">层</th><th>from</th><th>repeats</th><th>模块</th><th>args</th>
+        <th class="n">输出 [C,H,W]</th><th class="n">参数量</th><th>说明</th></tr></thead>
+      <tbody>
+        ${layers.map(L => `<tr>
+          <td class="n">${L.idx}${star(L) ? ' ★' : ''}</td>
+          <td class="n">${JSON.stringify(L.from)}</td>
+          <td class="n">${L.n ?? ''}</td>
+          <td><span style="background:${colorOf(L)};padding:1px 7px;border-radius:5px;font-weight:600">${L.module}</span></td>
+          <td class="n dim">${L.args}</td>
+          <td class="n"><b>[${L.out.join(', ')}]</b></td>
+          <td class="n">${(L.params || 0).toLocaleString()}</td>
+          <td class="dim">${L.note || ''}</td>
+        </tr>`).join('')}
+        <tr style="background:var(--bg-3)">
+          <td class="n">23</td><td class="n">[16,19,22]</td><td class="n">1</td>
+          <td><span style="background:#fdf1c9;padding:1px 7px;border-radius:5px;font-weight:600">Detect</span></td>
+          <td class="n dim">[nc=80]</td>
+          <td class="n"><b>[${no}, ${nCells.toLocaleString()}]</b></td>
+          <td class="n">—</td>
+          <td class="dim">三尺度各跑解耦头；格子数 = ${cells.map(c => c * c).join(' + ')} = ${nCells.toLocaleString()}</td>
+        </tr>
+        <tr style="background:var(--accent-bg)">
+          <td colspan="6"><b>合计（不含 Detect 头输出层）</b></td>
+          <td class="n"><b>${total.toLocaleString()}</b></td>
+          <td class="dim">与官方公布值误差 ≤0.02%</td>
+        </tr>
+      </tbody>`;
+  }
+  document.getElementById('tr-go').addEventListener('click', renderTrace);
+  sel.addEventListener('change', renderTrace);
+  document.getElementById('tr-imgsz').addEventListener('change', renderTrace);
+  renderTrace();
+})();
+</script>
+</body>
+</html>

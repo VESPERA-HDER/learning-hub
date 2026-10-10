@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>我的学习基地</title>
+<meta name="description" content="个人学习门户：每个研究方向是一个分支。纯静态、可开源于 GitHub Pages。">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./assets/css/style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brandmark">
+      <span class="dot"></span>
+      <div>
+        <span id="navTitle">我的学习基地</span><br>
+        <small id="navSub">个人学习门户</small>
+      </div>
+    </div>
+    <nav class="topnav">
+      <a href="#branches-sec">分支</a>
+      <a href="#heatmap-sec">热力图</a>
+      <a href="#milestones-sec">足迹</a>
+      <a href="#memo-sec">备忘</a>
+    </nav>
+    <div class="top-actions">
+      <a class="btn" id="ghLink" href="#" target="_blank" rel="noopener" title="GitHub 仓库（开源后生效）">GitHub ↗</a>
+      <button class="btn icon" id="themeBtn" title="切换深浅色">🌓</button>
+      <button class="btn only-edit" id="exportBtn">⬇ 导出</button>
+      <button class="btn only-edit" id="importBtn">⬆ 导入</button>
+      <button class="btn only-edit danger" id="resetBtn">↺ 恢复默认</button>
+      <button class="btn primary" id="editBtn">✏️ 编辑模式</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ================= Hero ================= -->
+  <div class="hero">
+    <div class="kicker">Personal Learning Hub</div>
+    <h1 data-ed="heroTitle">把每个方向，都学到底。</h1>
+    <p data-ed="heroDesc"></p>
+    <div class="cta">
+      <a class="btn accent" href="./yolo11-atlas/index.html">进入 YOLO11 学习站 →</a>
+      <a class="btn" href="#branches-sec">查看全部分支</a>
+    </div>
+    <div class="date" id="todayLine"></div>
+  </div>
+
+  <!-- ================= 统计 ================= -->
+  <div class="stats" id="stats"></div>
+
+  <!-- ================= 学习热力图 ================= -->
+  <div class="sec" id="heatmap-sec">
+    <div class="sec-h">
+      <span class="label">Activity</span>
+      <h2>学习热力图</h2>
+      <span class="hint">每天打开本站或 YOLO 学习站都会自动记录</span>
+    </div>
+    <div class="heatmap-card">
+      <div class="hm" id="heatmap"></div>
+      <div class="hm-foot">
+        <span id="hmRange"></span>
+        <span class="hm-legend">
+          少 <span class="hm-cell"></span><span class="hm-cell l1"></span><span class="hm-cell l2"></span><span class="hm-cell l3"></span><span class="hm-cell l4"></span> 多
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 学习分支 ================= -->
+  <div class="sec" id="branches-sec">
+    <div class="sec-h">
+      <span class="label">Branches</span>
+      <h2>学习分支</h2>
+      <span class="hint">编辑模式下可改名、改链接、增删分支</span>
+      <span class="sp"></span>
+    </div>
+    <div class="branches" id="branches"></div>
+    <button class="add-branch" id="addBranch">＋ 添加一个新分支</button>
+  </div>
+
+  <!-- ================= 学习足迹 ================= -->
+  <div class="sec" id="milestones-sec">
+    <div class="sec-h">
+      <span class="label">Milestones</span>
+      <h2>学习足迹</h2>
+      <span class="hint">编辑模式下可添加、修改、删除</span>
+    </div>
+    <ul class="tl" id="milestones"></ul>
+    <button class="add-ms" id="addMs">＋ 添加一条足迹</button>
+  </div>
+
+  <!-- ================= 快速入口 ================= -->
+  <div class="sec">
+    <div class="sec-h"><span class="label">Links</span><h2>快速入口</h2></div>
+    <div class="links" id="quickLinks"></div>
+  </div>
+
+  <!-- ================= 备忘 ================= -->
+  <div class="sec" id="memo-sec">
+    <div class="sec-h"><span class="label">Memo</span><h2>今日备忘</h2><span class="hint">随手记，自动保存</span></div>
+    <textarea class="memo" id="memo" placeholder="例：今天看完 YOLO11 总览视频；明天问助教课题数据类型怎么定……"></textarea>
+    <div class="memo-hint">内容只保存在本机浏览器（localStorage）。想长期保存学习内容，请编辑 data/hub-data.js 里的「学习足迹」，那是会随项目开源提交的部分。</div>
+  </div>
+
+  <footer>
+    <span>MIT License · 纯静态站点，可部署到 GitHub Pages</span>
+    <span class="sp"></span>
+    <span>内容编辑：网页编辑模式 / data/hub-data.js</span>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="importFile" accept=".json" hidden>
+
+<script src="./data/hub-data.js"></script>
+<script src="./assets/js/app.js"></script>
+</body>
+</html>
