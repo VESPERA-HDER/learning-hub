@@ -35,8 +35,8 @@ window.HUB_DEFAULT_DATA = {
   },
 
   github: {
-    user: 'your-github-name',     // TODO: 开源时改成你的 GitHub 用户名
-    repo: 'learning-hub',         // TODO: 开源时改成你的仓库名
+    user: 'VESPERA-HDER',         // GitHub 用户名（2026-10 已开源）
+    repo: 'learning-hub',         // 仓库：github.com/VESPERA-HDER/learning-hub
   },
 
   branches: [

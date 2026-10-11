@@ -3,7 +3,7 @@
  * 策略：安装时把整站（主站 + YOLO 子站）全部缓存进手机，之后优先读缓存，
  *       有网时后台顺便更新。改 CACHE_VERSION 数字可强制全量刷新。
  * ==========================================================================*/
-var CACHE_VERSION = 'learning-hub-v1';
+var CACHE_VERSION = 'learning-hub-v2';
 
 var ASSETS = [
   './',
