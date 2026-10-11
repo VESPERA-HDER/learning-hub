@@ -74,6 +74,12 @@ nav#toc::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:8px}
 .nav-g a:hover{background:var(--bg-3);text-decoration:none}
 .nav-g a.on{background:var(--accent-bg);color:var(--accent-2);font-weight:600;border-left-color:var(--accent)}
 .nav-search{padding:0 4px 10px}
+/* 模块导航是 JS 动态创建的，必须自己吃下剩余高度并可滚动，否则侧栏 overflow:hidden 会把
+   超出屏的模块裁掉（用户只能看到前 ~10 个） */
+#moduleNav{flex:1;overflow-y:auto;min-height:0;padding:8px 10px 30px}
+#moduleNav::-webkit-scrollbar{width:8px}
+#moduleNav::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:8px}
+@media(max-width:1080px){#moduleNav{flex:1;overflow-y:auto;min-height:0}}
 .nav-search input{
   width:100%;font:inherit;font-size:13px;padding:6px 10px;border-radius:var(--r-s);
   border:1px solid var(--line-2);background:var(--bg);color:var(--ink)
